@@ -61,9 +61,9 @@ export function buildHuangjiChart(input: HuangjiInput): HuangjiChart {
     shi,
     yearInShi,
     guaHint,
-    engine: 'lingjing-huangji@1',
+    engine: 'lingjing-huangji@2',
     researchNote:
-      '皇极经世以元会运世描述长时段气运，偏历史年表与宏观研究，非一事一占主路径。完整卦象链可对接 kinwangji sidecar。',
+      '皇极经世以元会运世描述长时段气运，偏历史年表与宏观研究。guaHint 为会运世合成提示卦，非完整卦象链；完整链可对接 kinwangji sidecar（PY_ENGINE_URL）。',
   }
 }
 
@@ -91,6 +91,7 @@ export function buildHuangjiRuleReading(chart: HuangjiChart): string {
     '',
     '## 解读边界',
     '- 研究级宏观定位，不作为个人短期吉凶断言依据。',
+    `- 提示卦「${chart.guaHint}」由会/运/世合成索引得出，非邵雍全卦链；配置 PY_ENGINE_URL 后可对照 kinwangji 旁证。`,
   ].join('\n')
 }
 

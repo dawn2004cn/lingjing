@@ -3,6 +3,72 @@
 import { useState } from 'react'
 import MarkdownBody from './MarkdownBody'
 
+const SIDECAR_SYSTEMS = new Set(['taiyi', 'huangji', 'qimen', 'daliuren', 'jinkou'])
+
+function statusColor(status) {
+  if (status === 'ok' || status === true) return 'text-[rgba(120,180,120,0.9)]'
+  if (status === 'warn') return 'text-[rgba(215,168,74,0.95)]'
+  if (status === 'fail' || status === false) return 'text-[rgba(196,92,74,0.95)]'
+  return 'text-[rgba(245,234,210,0.45)]'
+}
+
+function StatusStrip({ payload, system }) {
+  const integrity = payload.integrity
+  const witness = payload.chart?.witness
+  const pyNote = payload.meta?.pyNote
+  const pyEngine = payload.meta?.pyEngine
+  const pyOk =
+    pyEngine && typeof pyEngine === 'object' ? pyEngine.ok !== false && !pyEngine.error : null
+  const pyStub =
+    pyEngine && typeof pyEngine === 'object' && String(pyEngine.engine || '').includes('stub')
+
+  return (
+    <div className="space-y-2 border border-[var(--line)] rounded-md px-3 py-2.5">
+      <p className="text-[10px] tracking-[0.16em] text-[rgba(245,234,210,0.35)]">OUTPUT STATUS</p>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px]">
+        <span className={statusColor(integrity?.status)}>
+          integrity: {integrity?.status || '—'}
+        </span>
+        {witness && (
+          <span className={statusColor(witness.status)}>
+            witness: {witness.status}
+            {witness.engine ? ` · ${witness.engine}` : ''}
+          </span>
+        )}
+        {SIDECAR_SYSTEMS.has(system) && (
+          <span
+            className={statusColor(
+              pyNote ? (pyStub || pyOk === false ? 'warn' : 'ok') : 'warn',
+            )}
+          >
+            pyEngine:{' '}
+            {pyNote
+              ? pyStub
+                ? 'stub（包未装或失败）'
+                : pyOk === false
+                  ? '不可用'
+                  : '已并入'
+              : '未调用（未配置 PY_ENGINE_URL 或不可达）'}
+          </span>
+        )}
+      </div>
+      {integrity?.summary && (
+        <p className="text-[11px] text-[rgba(245,234,210,0.45)] leading-relaxed">
+          {integrity.summary}
+        </p>
+      )}
+      {witness?.summary && (
+        <p className="text-[11px] text-[rgba(245,234,210,0.4)] leading-relaxed">
+          MIT 旁证：{witness.summary}
+        </p>
+      )}
+      {pyNote && (
+        <p className="text-[11px] text-[rgba(245,234,210,0.4)] leading-relaxed">sidecar：{pyNote}</p>
+      )}
+    </div>
+  )
+}
+
 /**
  * 通用占卜起盘面板
  * fields: { key, label, type: 'text'|'date'|'time'|'number'|'select'|'textarea', options?, placeholder? }[]
@@ -115,14 +181,8 @@ export default function CastPanel({
             <span>{payload.system}</span>
             {payload.polished === false && <span>规则事实</span>}
             {payload.polished === true && <span>已润色</span>}
-            {payload.integrity?.status && <span>旁证 {payload.integrity.status}</span>}
-            {payload.meta?.pyNote && <span>sidecar</span>}
           </div>
-          {payload.integrity?.summary && (
-            <p className="text-[11px] text-[rgba(245,234,210,0.45)] leading-relaxed">
-              {payload.integrity.summary}
-            </p>
-          )}
+          <StatusStrip payload={payload} system={system} />
           <MarkdownBody content={payload.result || payload.ruleReading} />
           {payload.chart && (
             <details className="text-[11px] text-[rgba(245,234,210,0.4)]">

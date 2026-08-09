@@ -107,6 +107,20 @@ function tiYongRelation(tiWx: string, yongWx: string) {
   return { relation: '未知', verdict: '—' }
 }
 
+/** 应期简判：动爻位数为主，体用关系调远近 */
+export function meihuaYingQi(
+  dongYao: number,
+  tiYong: { relation: string; verdict: string },
+): { count: number; span: string; pace: string; text: string } {
+  const count = Math.min(6, Math.max(1, dongYao))
+  const span = count <= 3 ? '日' : '旬'
+  let pace = '中'
+  if (tiYong.relation === '用生体' || tiYong.relation === '体克用') pace = '近'
+  else if (tiYong.relation === '用克体' || tiYong.relation === '体生用') pace = '远'
+  const text = `动爻第${count}，应期偏${pace}，约 ${count} ${span}内看消息；互卦看过程节点，变卦看结果落点。`
+  return { count, span, pace, text }
+}
+
 export type MeihuaMethod = 'time' | 'number' | 'stroke'
 
 export interface MeihuaInput {
@@ -138,6 +152,8 @@ export interface MeihuaChart {
   ti: ReturnType<typeof baguaByN>
   yong: ReturnType<typeof baguaByN>
   tiYong: { relation: string; verdict: string }
+  /** 应期简判 */
+  yingQi: { count: number; span: string; pace: string; text: string }
   solarLabel?: string
   strokeInfo?: string
 }
@@ -150,6 +166,8 @@ const STROKE_MAP: Record<string, number> = {
   财: 7, 運: 13, 运: 8, 婚: 11, 姻: 9, 病: 10, 成: 6, 功: 5, 敗: 11,
   败: 8, 問: 11, 问: 6, 事: 8, 求: 7, 測: 12, 测: 9, 吉: 6, 凶: 4, 安: 6,
   靈: 24, 灵: 7, 鏡: 19, 镜: 13, 易: 8, 經: 13, 经: 8, 卦: 8, 爻: 4,
+  行: 6, 路: 13, 官: 8, 讼: 7, 訟: 11, 失: 5, 物: 8, 归: 5, 歸: 18,
+  合: 6, 同: 6, 居: 8, 迁: 6, 遷: 15, 买: 6, 買: 12, 卖: 8, 賣: 15,
 }
 
 export function countStrokes(text: string): { total: number; detail: string } {
@@ -231,6 +249,7 @@ export function buildMeihuaChart(input: MeihuaInput): MeihuaChart {
   const ti = dongYao <= 3 ? upper : lower
   const yong = dongYao <= 3 ? lower : upper
   const tiYong = tiYongRelation(ti.wx, yong.wx)
+  const yingQi = meihuaYingQi(dongYao, tiYong)
 
   return {
     method,
@@ -246,6 +265,7 @@ export function buildMeihuaChart(input: MeihuaInput): MeihuaChart {
     ti,
     yong,
     tiYong,
+    yingQi,
     solarLabel,
     strokeInfo,
   }
@@ -267,6 +287,7 @@ export function formatMeihuaForPrompt(chart: MeihuaChart): string {
     `- 错卦：${chart.cuo.name} · 综卦：${chart.zong.name}`,
     `- 体卦：${chart.ti.name}（${chart.ti.wx}）· 用卦：${chart.yong.name}（${chart.yong.wx}）`,
     `- 体用关系：${chart.tiYong.relation} → ${chart.tiYong.verdict}`,
+    `- 应期：${chart.yingQi.text}`,
   ]
     .filter(Boolean)
     .join('\n')
@@ -278,10 +299,11 @@ export function buildMeihuaRuleReading(chart: MeihuaChart): string {
     '',
     '## 规则断语',
     `- ${chart.tiYong.verdict}`,
+    `- ${chart.yingQi.text}`,
     '- 互卦看过程，变卦看结果；错综参看对待与反复之象；体为己、用为事。',
     '',
     '## 解读边界',
-    '- 卦名、体用、动爻、错综为算法输出，润色不得改写。',
+    '- 卦名、体用、动爻、错综、应期简判为算法输出，润色不得改写。',
   ].join('\n')
 }
 
@@ -299,6 +321,8 @@ export function collectMeihuaAllowedTerms(chart: MeihuaChart): Set<string> {
     chart.ti.wx,
     chart.yong.wx,
     chart.tiYong.relation,
+    '应期',
+    chart.yingQi.pace,
   ])
   return s
 }

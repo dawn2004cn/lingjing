@@ -37,6 +37,51 @@ const WX_GAN: Record<string, string> = {
 const SHENG: Record<string, string> = { 木: '火', 火: '土', 土: '金', 金: '水', 水: '木' }
 const KE: Record<string, string> = { 木: '土', 土: '水', 水: '火', 火: '金', 金: '木' }
 
+/** 天将简义（金口贵神） */
+const JIANG_MEANING: Record<string, string> = {
+  贵人: '贵人提携、文书印信、正当途径',
+  螣蛇: '虚惊怪异、反复纠缠、心神不宁',
+  朱雀: '口舌文书、信息往来、争辩是非',
+  六合: '和合交易、媒约合作、私下成事',
+  勾陈: '田土牵连、迟滞纠缠、牢狱羁绊',
+  青龙: '喜庆财帛、酒食婚姻、阳谋进取',
+  天空: '虚假不实、空亡无着、僧道玄门',
+  白虎: '血光伤灾、官非孝服、刚猛冲突',
+  太常: '衣食宴会、寻常稳定、医药酒食',
+  玄武: '盗贼欺诈、暗昧阴谋、走失遗失',
+  太阴: '阴私隐蔽、女子相关、阴谋筹划',
+  天后: '阴人恩泽、舟车雨泽、柔顺庇护',
+}
+
+function siWeiJudgment(chart: {
+  guiShen: { name: string; zhi: string; wx: string }
+  jiangShen: { zhi: string; wx: string }
+  diFen: { zhi: string; wx: string }
+  renYuan: { gan: string; wx: string }
+  xunKong: string
+}): { lines: string[]; summary: string } {
+  const bodyYong = wxRelation(chart.jiangShen.wx, chart.diFen.wx)
+  const guiMeaning = JIANG_MEANING[chart.guiShen.name] || '人事机括'
+  const lines = [
+    `贵神【${chart.guiShen.name}】：${guiMeaning}`,
+    `将神(${chart.jiangShen.wx})对地分(${chart.diFen.wx})为用对体：${bodyYong}`,
+    `人元${chart.renYuan.gan}(${chart.renYuan.wx})看天时动机；与地分关系为${wxRelation(chart.renYuan.wx, chart.diFen.wx)}`,
+  ]
+  const kongHit: string[] = []
+  if (chart.xunKong.includes(chart.diFen.zhi)) kongHit.push('地分')
+  if (chart.xunKong.includes(chart.jiangShen.zhi)) kongHit.push('将神')
+  if (chart.xunKong.includes(chart.guiShen.zhi)) kongHit.push('贵神位')
+  if (kongHit.length) lines.push(`旬空临${kongHit.join('、')}，事易落空或暂缓`)
+
+  let summary = '四位平稳，循序推进。'
+  if (bodyYong === '克') summary = '用克体，事主动进取，宜把握主动权。'
+  else if (bodyYong === '被克') summary = '用被体克，阻力在己或环境，宜缓图。'
+  else if (bodyYong === '生') summary = '用生体，得外力助，事较易成。'
+  else if (bodyYong === '被生') summary = '体生用，耗力求成，防付出过当。'
+  if (kongHit.length) summary += ` 兼看空亡（${kongHit.join('、')}）。`
+  return { lines, summary }
+}
+
 /** 日干 → 子上起遁干 */
 const DUN_START: Record<string, string> = {
   甲: '甲', 己: '甲',
@@ -112,6 +157,8 @@ export interface JinkouChart {
   jiangShen: { zhi: string; wx: string }
   diFen: { zhi: string; wx: string }
   relations: string[]
+  /** 四位细断 */
+  judgment: { lines: string[]; summary: string }
   xunKong: string
   engine: string
 }
@@ -171,6 +218,7 @@ export function buildJinkouChart(input: JinkouInput): JinkouChart {
   const zi = ZHI.indexOf(dayGz[1])
   const xunStart = ((zi - gi) % 12 + 12) % 12
   const xunKong = `${ZHI[(xunStart + 10) % 12]}${ZHI[(xunStart + 11) % 12]}`
+  const judgment = siWeiJudgment({ renYuan, guiShen, jiangShen, diFen, xunKong })
 
   return {
     question: typeof input.question === 'string' ? input.question : undefined,
@@ -186,8 +234,9 @@ export function buildJinkouChart(input: JinkouInput): JinkouChart {
     jiangShen,
     diFen,
     relations,
+    judgment,
     xunKong,
-    engine: 'lingjing-jinkou@1',
+    engine: 'lingjing-jinkou@2',
   }
 }
 
@@ -210,17 +259,19 @@ export function formatJinkouForPrompt(chart: JinkouChart): string {
 }
 
 export function buildJinkouRuleReading(chart: JinkouChart): string {
-  const focus = chart.relations.find((r) => r.includes('克') || r.includes('被克'))
   return [
     formatJinkouForPrompt(chart),
     '',
+    '## 四位细断',
+    ...chart.judgment.lines.map((l) => `- ${l}`),
+    '',
     '## 规则断语',
+    `- ${chart.judgment.summary}`,
     `- 以将神为用、地分为体；贵神看人事，人元看天时/动机。`,
-    focus ? `- 生克焦点：${focus}` : '- 四位多比和/相生，事机相对平稳。',
-    `- 空亡 ${chart.xunKong} 临地分或将神则事易落空。`,
+    `- 空亡 ${chart.xunKong}。`,
     '',
     '## 解读边界',
-    '- 四位干支神将为算法输出；完整流派断法可对接 py-engine/kinjinkou。',
+    '- 四位干支神将与细断为算法输出；完整流派断法可对接 py-engine/kinjinkou。',
     '- 金口诀为六壬简式，重大事项请人工复核。',
   ].join('\n')
 }
@@ -239,5 +290,6 @@ export function collectJinkouAllowedTerms(chart: JinkouChart): Set<string> {
     '贵神',
     '将神',
     '地分',
+    chart.judgment.summary,
   ])
 }

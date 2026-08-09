@@ -6,12 +6,12 @@
 |----|------|------|------|----------|------|----------|
 | bazi | 子平八字 | 命理 | lunar-javascript + tyme4ts + ziping | 日柱流派2 | `/` | 已有 §10 |
 | ziwei | 紫微斗数 | 命理 | iztro + integrity | 早子0/晚子12 | `/` | 已有 §10 |
-| meihua | 梅花易数 | 占卜 | lingjing-meihua | 时间 / 数字 / 汉字笔画 | `/meihua` | §20–21 |
-| liuyao | 易经六爻 | 占卜 | lingjing-liuyao（自研） | 时间/铜钱 | `/liuyao` | §20 |
-| xiaoliuren | 小六壬 | 占卜 | lingjing-xiaoliuren | 月日时顺推 | `/xiaoliuren` | §20 |
+| meihua | 梅花易数 | 占卜 | lingjing-meihua | 时间 / 数字 / 汉字笔画；应期简判 | `/meihua` | §20–21 |
+| liuyao | 易经六爻 | 占卜 | lingjing-liuyao（自研） | 时间(伪随机)/铜钱；日月建合冲 | `/liuyao` | §20 |
+| xiaoliuren | 小六壬 | 占卜 | lingjing-xiaoliuren | 月日时顺推 + 事项专断 | `/xiaoliuren` | §20 |
 | qimen | 奇门遁甲 | 占卜 | lingjing-qimen-chaibu + MIT 旁证 | 时家拆补 + 值符值使；**须人工复核** | `/qimen` | §20 |
 | daliuren | 大六壬 | 占卜 | lingjing-daliuren（可并 kinliuren） | 九宗门含别责/八专/昴星；**须人工复核** | `/daliuren` | §20–21 |
-| jinkou | 金口诀 | 占卜 | lingjing-jinkou；可并 kinjinkou | 四位：人元贵神将神地分 | `/jinkou` | §20 |
+| jinkou | 金口诀 | 占卜 | lingjing-jinkou；可并 kinjinkou | 四位 + 细断；人元贵神将神地分 | `/jinkou` | §20 |
 | taiyi | 太乙神数 | 研究 | lite JS；API 可并 py-engine | 年计 | `/taiyi` | §20 |
 | huangji | 皇极经世 | 研究 | lingjing-huangji；可并 py-engine | 元会运世 | `/huangji` | §20 |
 | tieban | 铁版神数 | 研究 | 结构盘（无条文） | 四柱→本命数 | `/tieban` | §20 |

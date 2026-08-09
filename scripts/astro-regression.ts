@@ -739,6 +739,8 @@ console.log('\n=== 20. 占卜集大成适配器冒烟 ===')
   })
   assert('梅花有本卦', !!(meihua.chart as any).ben?.name)
   assert('梅花规则文', meihua.ruleReading.includes('梅花'))
+  assert('梅花有应期', !!(meihua.chart as any).yingQi?.text)
+  assert('梅花规则含应期', meihua.ruleReading.includes('应期'))
   const m2 = getAdapter('meihua')!.build({ method: 'number', num1: 1, num2: 1, num3: 1 })
   assert('乾卦互卦为乾', (m2.chart as any).hu?.name === '乾为天', (m2.chart as any).hu?.name)
   assert('乾初爻变履', (m2.chart as any).bian?.name === '天泽履', (m2.chart as any).bian?.name)
@@ -773,8 +775,15 @@ console.log('\n=== 20. 占卜集大成适配器冒烟 ===')
     assert(`${id} 有 prompt`, !!built.promptText && built.promptText.length > 10)
   }
 
-  const xlr = getAdapter('xiaoliuren')!.build({ date: '2024-06-15', clock: '10:00' })
+  const xlr = getAdapter('xiaoliuren')!.build({
+    date: '2024-06-15',
+    clock: '10:00',
+    matter: '求财',
+  })
   assert('小六壬有时宫', !!(xlr.chart as any).shiGong?.name)
+  assert('小六壬事项归类', (xlr.chart as any).matterKey === '求财')
+  assert('小六壬事项专断', !!(xlr.chart as any).matterHint)
+  assert('小六壬规则含事项专断', xlr.ruleReading.includes('事项专断') || xlr.ruleReading.includes('求财'))
 
   const ly = getAdapter('liuyao')!.build({
     method: 'manual',
@@ -807,6 +816,8 @@ console.log('\n=== 20. 占卜集大成适配器冒烟 ===')
   assert('金口有人元', !!(jk.chart as any).renYuan?.gan)
   assert('金口有将神', !!(jk.chart as any).jiangShen?.zhi)
   assert('金口规则有四位', jk.ruleReading.includes('将神'))
+  assert('金口有细断', !!(jk.chart as any).judgment?.summary)
+  assert('金口规则含细断', jk.ruleReading.includes('四位细断'))
 
   const qm = getAdapter('qimen')!.build({ date: '2024-06-15', clock: '12:00' })
   assert('奇门九宫', (qm.chart as any).palaces?.length === 9)
@@ -831,9 +842,11 @@ console.log('\n=== 20. 占卜集大成适配器冒烟 ===')
 
   const ty = getAdapter('taiyi')!.build({ date: '2024-06-15', jiStyle: 0 })
   assert('太乙积年', typeof (ty.chart as any).jiNian === 'number')
+  assert('太乙规则含双路径', ty.ruleReading.includes('sidecar') || ty.ruleReading.includes('PY_ENGINE'))
 
   const hj = getAdapter('huangji')!.build({ year: 2024, month: 6, day: 15 })
   assert('皇极有会', (hj.chart as any).hui >= 1)
+  assert('皇极规则含双路径', hj.ruleReading.includes('kinwangji') || hj.ruleReading.includes('PY_ENGINE'))
 
   const tb = getAdapter('tieban')!.build({
     gender: '男',

@@ -80,9 +80,9 @@ export function buildTaiyiChart(input: TaiyiInput): TaiyiChart {
     placements,
     zhuSuan,
     keSuan,
-    engine: 'lingjing-taiyi-lite@1',
+    engine: 'lingjing-taiyi-lite@2',
     researchNote:
-      '太乙侧重国运/天时/大势，非日常一事一占。完整统宗/金镜法可通过 services/py-engine 调用 kintaiyi。',
+      '太乙侧重国运/天时/大势，非日常一事一占。本盘为 JS lite；完整统宗/金镜法见 services/py-engine（kintaiyi）。配置 PY_ENGINE_URL 后规则文会追加 sidecar 旁证，便于对照差异。',
   }
 }
 
@@ -109,7 +109,9 @@ export function buildTaiyiRuleReading(chart: TaiyiChart): string {
     `- 主客算对比：主${chart.zhuSuan} / 客${chart.keSuan}；主大于客偏主动方有势（简判）。`,
     '',
     '## 解读边界',
-    '- 本盘为教学/研究级简局，不作军事或政治决策依据。',
+    '- 本盘为教学/研究级 JS lite，不作军事或政治决策依据。',
+    '- 双路径：未配置 PY_ENGINE_URL 时仅有 lite；配置后可对照 kintaiyi 旁证（见文末 sidecar 段，若有）。',
+    `- 积年常数锚点参考年 ${TAIYI_EPOCH_YEAR}（lite 公式仍以 ${TAIYI_YUAN} 量级简化，完整法以 sidecar 为准）。`,
   ].join('\n')
 }
 
