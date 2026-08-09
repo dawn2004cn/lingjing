@@ -1,0 +1,37 @@
+{
+  "name": "eight-character-fortune",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "node --max-old-space-size=8192 ./node_modules/next/dist/bin/next build",
+    "start": "next start",
+    "test:astro": "npx --yes tsx scripts/astro-regression.ts"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^12.11.1",
+    "cookie": "^2.0.1",
+    "iztro": "^2.5.8",
+    "jsonwebtoken": "^9.0.3",
+    "lucide-react": "^0.400.0",
+    "lunar-javascript": "^1.7.7",
+    "next": "^14.2.0",
+    "openai": "^4.50.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "react-markdown": "^9.0.0",
+    "remark-gfm": "^4.0.0",
+    "true-solar-time": "^1.2.1",
+    "tyme4ts": "^1.5.2"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "autoprefixer": "^10.4.0",
+    "postcss": "^8.4.0",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.7.3"
+  }
+}
