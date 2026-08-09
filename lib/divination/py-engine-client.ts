@@ -24,14 +24,7 @@ export async function fetchPyEngine(
   }
 }
 
-/** 太乙 / 皇极：在 JS lite 盘上附加完整法旁证（有则写 meta） */
-export async function enrichWithPyEngine(
-  system: string,
-  chart: Record<string, unknown>,
-  input?: Record<string, unknown>,
-): Promise<{ sidecar: unknown; note: string } | null> {
-  if (system !== 'taiyi' && system !== 'huangji') return null
-
+function resolveYmdh(chart: Record<string, unknown>, input?: Record<string, unknown>) {
   const dateStr =
     (typeof input?.date === 'string' && input.date) ||
     (typeof chart.date === 'string' && chart.date) ||
@@ -42,6 +35,39 @@ export async function enrichWithPyEngine(
   const day = Number(chart.day) || d || 1
   const clock = typeof input?.clock === 'string' ? input.clock : '12:00'
   const hour = Number(chart.hour) || Number(clock.split(':')[0]) || 12
+  return { year, month, day, hour }
+}
+
+/** 将 sidecar JSON 压成可读 Markdown 段落（保证有输出） */
+export function formatSidecarMarkdown(note: string, sidecar: unknown): string {
+  const lines = ['', '## Python sidecar 旁证', `- ${note}`]
+  if (sidecar && typeof sidecar === 'object') {
+    const s = sidecar as Record<string, unknown>
+    if (s.engine) lines.push(`- 引擎：${String(s.engine)}`)
+    if (s.ok === false && s.error) lines.push(`- 错误：${String(s.error)}`)
+    if (s.hint) lines.push(`- 提示：${String(s.hint)}`)
+    if (typeof s.text === 'string' && s.text.trim()) {
+      lines.push('', '```', s.text.slice(0, 1200), '```')
+    } else if (s.data != null) {
+      const raw = typeof s.data === 'string' ? s.data : JSON.stringify(s.data, null, 2)
+      lines.push('', '```json', raw.slice(0, 1200), '```')
+    } else if (s.gua != null) {
+      lines.push(`- 卦：${JSON.stringify(s.gua)}`)
+    }
+  }
+  return lines.join('\n')
+}
+
+/** 太乙/皇极/奇门/大六壬：可选 Python 旁证 */
+export async function enrichWithPyEngine(
+  system: string,
+  chart: Record<string, unknown>,
+  input?: Record<string, unknown>,
+): Promise<{ sidecar: unknown; note: string } | null> {
+  const supported = ['taiyi', 'huangji', 'qimen', 'daliuren']
+  if (!supported.includes(system)) return null
+
+  const { year, month, day, hour } = resolveYmdh(chart, input)
 
   if (system === 'taiyi') {
     const data = await fetchPyEngine('/taiyi', {
@@ -62,18 +88,40 @@ export async function enrichWithPyEngine(
     }
   }
 
-  const data = await fetchPyEngine('/huangji', {
-    year,
-    month,
-    day,
-    hour,
-    minute: 0,
-  })
+  if (system === 'huangji') {
+    const data = await fetchPyEngine('/huangji', {
+      year,
+      month,
+      day,
+      hour,
+      minute: 0,
+    })
+    if (!data) return null
+    return {
+      sidecar: data,
+      note: data.ok
+        ? '已并入 py-engine/kinwangji 旁证'
+        : 'py-engine 未装 kinwangji，仍以 JS lite 为准',
+    }
+  }
+
+  if (system === 'qimen') {
+    const data = await fetchPyEngine('/qimen', { year, month, day, hour, minute: 0 })
+    if (!data) return null
+    return {
+      sidecar: data,
+      note: data.ok
+        ? '已并入 py-engine/kinqimen 旁证'
+        : 'py-engine 未装 kinqimen；Node 侧 MIT 旁证仍可用',
+    }
+  }
+
+  const data = await fetchPyEngine('/daliuren', { year, month, day, hour, minute: 0 })
   if (!data) return null
   return {
     sidecar: data,
     note: data.ok
-      ? '已并入 py-engine/kinwangji 旁证'
-      : 'py-engine 未装 kinwangji，仍以 JS lite 为准',
+      ? '已并入 py-engine/kinliuren 旁证'
+      : 'py-engine 未装 kinliuren，仍以 JS 自研为准',
   }
 }

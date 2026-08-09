@@ -729,6 +729,37 @@ console.log('\n=== 20. 占卜集大成适配器冒烟 ===')
   })
   assert('梅花有本卦', !!(meihua.chart as any).ben?.name)
   assert('梅花规则文', meihua.ruleReading.includes('梅花'))
+  const m2 = getAdapter('meihua')!.build({ method: 'number', num1: 1, num2: 1, num3: 1 })
+  assert('乾卦互卦为乾', (m2.chart as any).hu?.name === '乾为天', (m2.chart as any).hu?.name)
+  assert('乾初爻变履', (m2.chart as any).bian?.name === '天泽履', (m2.chart as any).bian?.name)
+  const m3 = getAdapter('meihua')!.build({ method: 'number', num1: 1, num2: 1, num3: 3 })
+  assert('乾三爻变姤', (m3.chart as any).bian?.name === '天风姤', (m3.chart as any).bian?.name)
+
+  for (const id of [
+    'bazi',
+    'ziwei',
+    'meihua',
+    'liuyao',
+    'xiaoliuren',
+    'qimen',
+    'daliuren',
+    'taiyi',
+    'huangji',
+    'tieban',
+  ] as const) {
+    const built = getAdapter(id)!.build(
+      id === 'ziwei' || id === 'bazi' || id === 'tieban'
+        ? {
+            gender: '男',
+            birthDate: '1990-05-15',
+            birthHour: '午时',
+            calendarType: '公历',
+          }
+        : { date: '2024-06-15', clock: '12:00', method: 'time', text: '求财', year: 2024 },
+    )
+    assert(`${id} 有规则输出`, !!built.ruleReading && built.ruleReading.length > 40)
+    assert(`${id} 有 prompt`, !!built.promptText && built.promptText.length > 10)
+  }
 
   const xlr = getAdapter('xiaoliuren')!.build({ date: '2024-06-15', clock: '10:00' })
   assert('小六壬有时宫', !!(xlr.chart as any).shiGong?.name)
@@ -744,7 +775,14 @@ console.log('\n=== 20. 占卜集大成适配器冒烟 ===')
 
   const qm = getAdapter('qimen')!.build({ date: '2024-06-15', clock: '12:00' })
   assert('奇门九宫', (qm.chart as any).palaces?.length === 9)
-  assert('奇门旁证 ok', qm.integrity?.status === 'ok')
+  assert('奇门值使宫', typeof (qm.chart as any).zhiShiGong === 'number')
+  assert('奇门旁证字段', !!(qm.chart as any).witness?.engine)
+  assert('奇门规则含值使', qm.ruleReading.includes('值使'))
+  assert(
+    '奇门完整性非 fail',
+    qm.integrity?.status === 'ok' || qm.integrity?.status === 'warn',
+    qm.integrity?.status,
+  )
 
   const dlr = getAdapter('daliuren')!.build({ date: '2024-06-15', clock: '12:00', dayNight: 'day' })
   assert('大六壬四课', (dlr.chart as any).ke?.length === 4)
@@ -813,12 +851,12 @@ console.log('\n=== 21. 大六壬九宗门简判 + 原典/笔画 ===')
   ])
   assert('克贼取法', kezei.method === '克贼', kezei.method)
 
-  // 无克 → 昴星简化
+  // 无克无贼且非伏吟 → 昴星
   const mao = takeSanChuan([
-    { label: '1', upper: '子', lower: '子' },
-    { label: '2', upper: '丑', lower: '丑' },
-    { label: '3', upper: '寅', lower: '寅' },
-    { label: '4', upper: '卯', lower: '卯' },
+    { label: '1', upper: '子', lower: '寅' },
+    { label: '2', upper: '丑', lower: '辰' },
+    { label: '3', upper: '寅', lower: '卯' },
+    { label: '4', upper: '卯', lower: '巳' },
   ])
   assert('昴星简化', mao.method.includes('昴星'), mao.method)
 

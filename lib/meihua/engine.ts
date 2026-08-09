@@ -16,7 +16,7 @@ export const BAGUA = [
   { n: 8, name: '坤', nature: '地', wx: '土' },
 ] as const
 
-/** 上卦索引 0–7 × 下卦 0–7 → 六十四卦名（简化表，按先天序） */
+/** 上卦索引 0–7 × 下卦 0–7 → 六十四卦名（先天序） */
 const HEX_NAMES: string[][] = (() => {
   const names = [
     ['乾为天', '天泽履', '天火同人', '天雷无妄', '天风姤', '天水讼', '天山遁', '天地否'],
@@ -52,21 +52,50 @@ function hexName(upper: number, lower: number) {
   return HEX_NAMES[upper - 1]?.[lower - 1] || `${baguaByN(upper).name}${baguaByN(lower).name}`
 }
 
-/** 互卦：取 2,3,4 爻为下，3,4,5 为上（按先天八卦数简化：用上下卦重排） */
-function huGua(upper: number, lower: number) {
-  // 简化：互上 = (upper+lower)%8 映射，保证确定性
-  const huUpper = mod8(upper + lower)
-  const huLower = mod8(upper * 2 + lower)
-  return { upper: huUpper, lower: huLower, name: hexName(huUpper, huLower) }
+/** 先天八卦 → 三爻（自下而上，1阳0阴） */
+const BAGUA_BITS: Record<number, [number, number, number]> = {
+  1: [1, 1, 1], // 乾
+  2: [0, 1, 1], // 兑
+  3: [1, 0, 1], // 离
+  4: [0, 0, 1], // 震
+  5: [1, 1, 0], // 巽
+  6: [0, 1, 0], // 坎
+  7: [1, 0, 0], // 艮
+  8: [0, 0, 0], // 坤
 }
 
+function bitsToBaguaN(bits: [number, number, number]): number {
+  const key = bits.join('')
+  for (const [n, arr] of Object.entries(BAGUA_BITS)) {
+    if (arr.join('') === key) return Number(n)
+  }
+  return 8
+}
+
+/** 六爻自下而上：下卦三爻 + 上卦三爻 */
+function toSixLines(upper: number, lower: number): number[] {
+  return [...BAGUA_BITS[lower], ...BAGUA_BITS[upper]]
+}
+
+function fromSixLines(lines: number[]): { upper: number; lower: number; name: string } {
+  const lower = bitsToBaguaN(lines.slice(0, 3) as [number, number, number])
+  const upper = bitsToBaguaN(lines.slice(3, 6) as [number, number, number])
+  return { upper, lower, name: hexName(upper, lower) }
+}
+
+/** 互卦：取 2–4 爻为下、3–5 爻为上（自下而上计） */
+function huGua(upper: number, lower: number) {
+  const L = toSixLines(upper, lower)
+  const huLines = [...L.slice(1, 4), ...L.slice(2, 5)]
+  return fromSixLines(huLines)
+}
+
+/** 变卦：第 dongYao 爻阴阳翻转 */
 function bianGua(upper: number, lower: number, dongYao: number) {
-  // 动爻 1–6：1–3 动下卦，4–6 动上卦（简化翻转卦序）
-  let u = upper
-  let l = lower
-  if (dongYao <= 3) l = mod8(lower + dongYao)
-  else u = mod8(upper + (dongYao - 3))
-  return { upper: u, lower: l, name: hexName(u, l) }
+  const L = toSixLines(upper, lower)
+  const i = Math.min(6, Math.max(1, dongYao)) - 1
+  L[i] = L[i] === 1 ? 0 : 1
+  return fromSixLines(L)
 }
 
 function tiYongRelation(tiWx: string, yongWx: string) {
@@ -103,7 +132,7 @@ export interface MeihuaChart {
   ben: { name: string; upper: number; lower: number }
   hu: { name: string; upper: number; lower: number }
   bian: { name: string; upper: number; lower: number }
-  /** 体卦：静卦侧；用卦：动卦侧（简化：动爻在下则下为用） */
+  /** 体卦：静卦侧；用卦：动爻所在侧 */
   ti: ReturnType<typeof baguaByN>
   yong: ReturnType<typeof baguaByN>
   tiYong: { relation: string; verdict: string }

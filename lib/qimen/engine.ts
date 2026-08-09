@@ -88,10 +88,22 @@ export interface QimenChart {
   jieQi: string
   yangDun: boolean
   ju: number
+  yuan: string
   xunShou: string
   zhiFuGong: number
+  zhiShiGong: number
+  zhiFuStar: string
+  zhiShiDoor: string
   palaces: QimenPalace[]
   engine: string
+  witness?: {
+    engine: string
+    ju?: string
+    fu?: string
+    shi?: string
+    status: string
+    summary: string
+  }
 }
 
 export function buildQimenChart(input: QimenInput): QimenChart {
@@ -113,14 +125,14 @@ export function buildQimenChart(input: QimenInput): QimenChart {
   const yangDun = input.yangDun != null ? !!input.yangDun : base.yang
   // 三元：日干支旬简化为上中下元偏移
   const dayGz = lunar.getDayInGanZhi()
-  const yuan = (dayGz.charCodeAt(0) + dayGz.charCodeAt(1)) % 3
-  let ju = input.ju != null ? Number(input.ju) : ((base.ju - 1 + yuan) % 9) + 1
+  const yuanIdx = (dayGz.charCodeAt(0) + dayGz.charCodeAt(1)) % 3
+  let ju = input.ju != null ? Number(input.ju) : ((base.ju - 1 + yuanIdx) % 9) + 1
   if (ju < 1 || ju > 9) ju = 1
 
   const xs = xunShou(dayGz)
   // 值符落宫：阳遁从坎起局
   const zhiFuGong = yangDun ? ju : 10 - ju
-  const diStart = yangDun ? ju - 1 : (9 - ju)
+  const diStart = yangDun ? ju - 1 : 9 - ju
   const diGans: Record<number, string> = {}
   for (let i = 0; i < 9; i++) {
     const g = ((yangDun ? ju - 1 + i : ju - 1 - i) + 9) % 9 + 1
@@ -129,25 +141,32 @@ export function buildQimenChart(input: QimenInput): QimenChart {
 
   // 时干落宫找值使
   const timeGan = lunar.getTimeInGanZhi()[0]
-  let shiGanGong = 1
+  let zhiShiGong = 1
   for (const [g, gan] of Object.entries(diGans)) {
     if (gan === timeGan || (timeGan === '甲' && gan === '戊')) {
-      shiGanGong = Number(g)
+      zhiShiGong = Number(g)
       break
     }
   }
 
+  const yuanNames = ['上元', '中元', '下元'] as const
+  const yuan = yuanNames[yuanIdx]
+
   const palaces: QimenPalace[] = []
   for (let g = 1; g <= 9; g++) {
-    const offset = yangDun
+    const offsetFu = yangDun
       ? (g - zhiFuGong + 9) % 9
       : (zhiFuGong - g + 9) % 9
-    const door = EIGHT_DOORS[offset % 8]
-    const star = NINE_STARS[offset % 9]
-    const god = EIGHT_GODS[offset % 8]
+    const offsetShi = yangDun
+      ? (g - zhiShiGong + 9) % 9
+      : (zhiShiGong - g + 9) % 9
+    // 九星随值符，八门随值使，八神随值符
+    const door = EIGHT_DOORS[offsetShi % 8]
+    const star = NINE_STARS[offsetFu % 9]
+    const god = EIGHT_GODS[offsetFu % 8]
     const tianIdx = yangDun
-      ? (diStart + offset) % 9
-      : (diStart - offset + 9) % 9
+      ? (diStart + offsetFu) % 9
+      : (diStart - offsetFu + 9) % 9
     palaces.push({
       gong: g,
       name: GONG_NAMES[g],
@@ -159,6 +178,9 @@ export function buildQimenChart(input: QimenInput): QimenChart {
     })
   }
 
+  const zfPalace = palaces.find((p) => p.gong === zhiFuGong)
+  const zsPalace = palaces.find((p) => p.gong === zhiShiGong)
+
   return {
     method: '时家拆补',
     question: typeof input.question === 'string' ? input.question : undefined,
@@ -166,10 +188,14 @@ export function buildQimenChart(input: QimenInput): QimenChart {
     jieQi: jqName,
     yangDun,
     ju,
+    yuan,
     xunShou: xs,
     zhiFuGong,
+    zhiShiGong,
+    zhiFuStar: zfPalace?.star || '—',
+    zhiShiDoor: zsPalace?.door || '—',
     palaces,
-    engine: 'lingjing-qimen-chaibu@1',
+    engine: 'lingjing-qimen-chaibu@2',
   }
 }
 
@@ -183,8 +209,11 @@ export function formatQimenForPrompt(chart: QimenChart): string {
     chart.question ? `- 问事：${chart.question}` : null,
     `- 引擎：${chart.engine} · ${chart.method}`,
     `- 四柱：${chart.pillars}`,
-    `- 节气：${chart.jieQi} · ${chart.yangDun ? '阳遁' : '阴遁'}${chart.ju}局`,
-    `- 旬首：${chart.xunShou} · 值符宫：${chart.zhiFuGong}`,
+    `- 节气：${chart.jieQi} · ${chart.yangDun ? '阳遁' : '阴遁'}${chart.ju}局 · ${chart.yuan}`,
+    `- 旬首：${chart.xunShou} · 值符宫：${chart.zhiFuGong}（${chart.zhiFuStar}）· 值使宫：${chart.zhiShiGong}（${chart.zhiShiDoor}）`,
+    chart.witness
+      ? `- 旁证：${chart.witness.engine} · ${chart.witness.summary}`
+      : null,
     '',
     '| 宫 | 地盘 | 天盘 | 九星 | 八门 | 八神 |',
     '|---|---|---|---|---|---|',
@@ -196,17 +225,30 @@ export function formatQimenForPrompt(chart: QimenChart): string {
 
 export function buildQimenRuleReading(chart: QimenChart): string {
   const zf = chart.palaces.find((p) => p.gong === chart.zhiFuGong)
-  return [
+  const zs = chart.palaces.find((p) => p.gong === chart.zhiShiGong)
+  const lines = [
     formatQimenForPrompt(chart),
     '',
     '## 规则断语',
-    `- 值符在${zf?.name || chart.zhiFuGong}宫，星${zf?.star || '—'}、门${zf?.door || '—'}。`,
+    `- 值符在${zf?.name || chart.zhiFuGong}宫，星${chart.zhiFuStar}；值使在${zs?.name || chart.zhiShiGong}宫，门${chart.zhiShiDoor}。`,
     '- 用神随问事取宫：求财看生门，求官看开门，逃亡看杜门等。',
     '',
     '## 解读边界',
     '- 局数、阴阳遁、九宫神星门干为算法输出，润色不得改写。',
-    '- 本引擎为拆补时家自研实现，重大决策请人工复核。',
-  ].join('\n')
+    '- 本引擎为拆补时家自研实现；旁证库仅作交叉参考，重大决策请人工复核。',
+  ]
+  if (chart.witness) {
+    lines.push(
+      '',
+      '## 旁证输出（MIT qimendunjia-standalone）',
+      `- 状态：${chart.witness.status}`,
+      chart.witness.ju ? `- 局：${chart.witness.ju}` : null,
+      chart.witness.fu ? `- ${chart.witness.fu}` : null,
+      chart.witness.shi ? `- ${chart.witness.shi}` : null,
+      `- ${chart.witness.summary}`,
+    )
+  }
+  return lines.filter((x) => x != null).join('\n')
 }
 
 export function collectQimenAllowedTerms(chart: QimenChart): Set<string> {

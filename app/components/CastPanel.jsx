@@ -110,8 +110,22 @@ export default function CastPanel({
             {payload.polished === false && <span>规则事实</span>}
             {payload.polished === true && <span>已润色</span>}
             {payload.integrity?.status && <span>旁证 {payload.integrity.status}</span>}
+            {payload.meta?.pyNote && <span>sidecar</span>}
           </div>
+          {payload.integrity?.summary && (
+            <p className="text-[11px] text-[rgba(245,234,210,0.45)] leading-relaxed">
+              {payload.integrity.summary}
+            </p>
+          )}
           <MarkdownBody content={payload.result || payload.ruleReading} />
+          {payload.chart && (
+            <details className="text-[11px] text-[rgba(245,234,210,0.4)]">
+              <summary className="cursor-pointer tracking-widest">结构化盘面 JSON</summary>
+              <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-all border border-[var(--line)] rounded-md p-3 text-[10px] text-[rgba(245,234,210,0.55)]">
+                {JSON.stringify(payload.chart, null, 2)}
+              </pre>
+            </details>
+          )}
         </div>
       )}
     </div>

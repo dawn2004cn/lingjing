@@ -17,10 +17,16 @@ export default function XiaoliurenPage() {
           fields={[
             { key: 'date', label: '日期', type: 'date' },
             { key: 'clock', label: '钟点', type: 'time' },
+            {
+              key: 'count',
+              label: '报数偏移（可选 0–5）',
+              type: 'number',
+              placeholder: '0',
+            },
             { key: 'matter', label: '事项类型', type: 'text', placeholder: '求财/出行/婚姻…' },
             { key: 'question', label: '问事', type: 'textarea', full: true },
           ]}
-          initial={{ date: today(), clock: '12:00' }}
+          initial={{ date: today(), clock: '12:00', count: 0 }}
         />
       </div>
     </main>

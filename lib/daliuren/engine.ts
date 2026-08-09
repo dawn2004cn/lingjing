@@ -109,7 +109,10 @@ function shangShen(tianPan: string[], diZhi: string): string {
   return tianPan[zhiIndex(diZhi)]
 }
 
-export function takeSanChuan(ke: KeItem[]): { chu: string; zhong: string; mo: string; method: string } {
+export function takeSanChuan(
+  ke: KeItem[],
+  tianPan?: string[],
+): { chu: string; zhong: string; mo: string; method: string } {
   // 贼克：下克上为贼，上克下为克
   const zei: KeItem[] = []
   const keShang: KeItem[] = []
@@ -117,9 +120,23 @@ export function takeSanChuan(ke: KeItem[]): { chu: string; zhong: string; mo: st
     if (isKe(k.lower, k.upper)) zei.push(k)
     if (isKe(k.upper, k.lower)) keShang.push(k)
   }
+
+  // 伏吟：四课上下皆同
+  const allFu = ke.every((k) => k.upper === k.lower)
+  // 返吟：天盘相对地盘对冲（相邻课上神与下神相冲）
+  const chong = (a: string, b: string) => (zhiIndex(a) + 6) % 12 === zhiIndex(b)
+  const allFan = ke.every((k) => chong(k.upper, k.lower))
+
   let chu: string
   let method: string
-  if (zei.length === 1) {
+
+  if (allFu) {
+    chu = ke[0].upper
+    method = '伏吟'
+  } else if (allFan) {
+    chu = ke[0].upper
+    method = '返吟'
+  } else if (zei.length === 1) {
     chu = zei[0].upper
     method = '贼克'
   } else if (zei.length > 1) {
@@ -130,16 +147,35 @@ export function takeSanChuan(ke: KeItem[]): { chu: string; zhong: string; mo: st
     method = '克贼'
   } else if (keShang.length > 1) {
     chu = keShang[0].upper
-    method = '涉害（简化取初）'
+    method = '涉害（多克取初）'
   } else {
-    // 昴星简化：取日上神
-    chu = ke[0].upper
-    method = '昴星/别责（简化）'
+    // 遥克：日上神（一课上）与支上神（三课上）相克
+    const yao =
+      (isKe(ke[0].upper, ke[2].upper) && ke[0]) ||
+      (isKe(ke[2].upper, ke[0].upper) && ke[2]) ||
+      null
+    if (yao) {
+      chu = yao.upper
+      method = '遥克'
+    } else if (ke[0].upper === ke[1].upper && ke[0].upper === ke[2].upper) {
+      chu = ke[0].upper
+      method = '八专/别责（简化）'
+    } else {
+      chu = ke[0].upper
+      method = '昴星（简化取日上）'
+    }
   }
-  // 中末：以初传为地盘，上神为中；再取末
-  // 简化：中传 = 初传地支上神在天盘再寄；用四课第二、第三
-  const zhong = ke[1]?.upper || addZhi(chu, 4)
-  const mo = ke[2]?.upper || addZhi(chu, 8)
+
+  // 中末：天盘递取——初传地盘位上神为中，中传位上神为末
+  let zhong: string
+  let mo: string
+  if (tianPan && tianPan.length === 12) {
+    zhong = shangShen(tianPan, chu)
+    mo = shangShen(tianPan, zhong)
+  } else {
+    zhong = ke[1]?.upper || addZhi(chu, 4)
+    mo = ke[2]?.upper || addZhi(chu, 8)
+  }
   return { chu, zhong, mo, method }
 }
 
@@ -182,11 +218,13 @@ export function buildDaliurenChart(input: DaliurenInput): DaliurenChart {
     { label: '四课（支阴）', upper: zhiYin, lower: zhiYang },
   ]
 
-  const sanChuan = takeSanChuan(ke)
-  // 天将：贵人加于贵人位，顺/逆布（昼顺夜逆简化为昼顺）
+  const sanChuan = takeSanChuan(ke, tianPan)
+  // 天将：贵人加于贵人位；昼顺夜逆
   const grIdx = zhiIndex(guiRen)
   const tianJiangOnChuan = [sanChuan.chu, sanChuan.zhong, sanChuan.mo].map((z) => {
-    const d = (zhiIndex(z) - grIdx + 12) % 12
+    const d = night
+      ? (grIdx - zhiIndex(z) + 12) % 12
+      : (zhiIndex(z) - grIdx + 12) % 12
     return TIAN_JIANG[d]
   })
 
@@ -229,7 +267,7 @@ export function buildDaliurenRuleReading(chart: DaliurenChart): string {
     `- 贵人${chart.guiRen}临${chart.dayNight}。`,
     '',
     '## 解读边界',
-    '- 四课三传、月将贵人为算法输出；九宗门边缘课体为简化实现，重大事项请人工复核。',
+    '- 四课三传、月将贵人为算法输出；涉害深度与别责细则仍可能简化，重大事项请人工复核。',
   ].join('\n')
 }
 

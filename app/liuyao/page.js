@@ -22,10 +22,18 @@ export default function LiuyaoPage() {
               options: [
                 { value: 'time', label: '时间起卦' },
                 { value: 'coin', label: '铜钱模拟' },
+                { value: 'manual', label: '手动六爻（下方填值）' },
               ],
             },
             { key: 'date', label: '日期', type: 'date' },
             { key: 'clock', label: '钟点', type: 'time' },
+            {
+              key: 'yaoText',
+              label: '手动爻值（自下而上，空格分隔，6/7/8/9）',
+              type: 'text',
+              full: true,
+              placeholder: '如：7 8 9 6 7 8',
+            },
             { key: 'question', label: '问事', type: 'textarea', full: true },
           ]}
           initial={{ method: 'time', date: today(), clock: '12:00' }}

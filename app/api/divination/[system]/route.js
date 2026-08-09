@@ -1,5 +1,5 @@
 import { getAdapter, isValidSystemId, listSystems } from '@/lib/divination/registry'
-import { enrichWithPyEngine } from '@/lib/divination/py-engine-client'
+import { enrichWithPyEngine, formatSidecarMarkdown } from '@/lib/divination/py-engine-client'
 import OpenAI from 'openai'
 import { citationRiskScore } from '@/lib/astro/citation-guard'
 import { normalizeMarkdown } from '@/lib/markdown/normalize'
@@ -25,8 +25,8 @@ export async function POST(request, context) {
     const polish = !!body.polish
     const built = adapter.build(body)
 
-    // 太乙/皇极：可选 Python sidecar 旁证（未配置 PY_ENGINE_URL 则跳过）
-    if (system === 'taiyi' || system === 'huangji') {
+    // 可选 Python sidecar：太乙/皇极/奇门/大六壬（未配置则跳过）
+    if (['taiyi', 'huangji', 'qimen', 'daliuren'].includes(system)) {
       const enrich = await enrichWithPyEngine(system, built.chart || {}, body)
       if (enrich) {
         built.meta = { ...(built.meta || {}), pyEngine: enrich.sidecar, pyNote: enrich.note }
@@ -42,6 +42,10 @@ export async function POST(request, context) {
             summary: enrich.note,
           }
         }
+        // 保证旁证段落进入用户可见输出
+        const appendix = formatSidecarMarkdown(enrich.note, enrich.sidecar)
+        built.ruleReading = `${built.ruleReading}${appendix}`
+        built.promptText = `${built.promptText}${appendix}`
       }
     }
 

@@ -20,7 +20,7 @@ const BAGUA_LINES: Record<string, [number, number, number]> = {
 
 const BAGUA_ORDER = ['坤', '震', '坎', '兑', '艮', '离', '巽', '乾'] as const
 
-/** 八卦纳甲（干支） */
+/** 八卦纳甲（干支，自下而上） */
 const NAJIA: Record<string, string[]> = {
   乾: ['甲子', '甲寅', '甲辰', '壬午', '壬申', '壬戌'],
   兑: ['丁巳', '丁卯', '丁丑', '丁亥', '丁酉', '丁未'],
@@ -49,6 +49,34 @@ const SHENG: Record<string, string> = { 木: '火', 火: '土', 土: '金', 金:
 const KE: Record<string, string> = { 木: '土', 土: '水', 水: '火', 火: '金', 金: '木' }
 
 const LIUSHOU = ['青龙', '朱雀', '勾陈', '螣蛇', '白虎', '玄武'] as const
+
+/** 京氏八宫：本宫→一世…五世→游魂→归魂（共 8 卦） */
+const JING_GONG: Record<string, string[]> = {
+  乾: ['乾为天', '天风姤', '天山遁', '天地否', '风地观', '山地剥', '火地晋', '火天大有'],
+  兑: ['兑为泽', '泽水困', '泽地萃', '泽山咸', '水山蹇', '地山谦', '雷山小过', '雷泽归妹'],
+  离: ['离为火', '火山旅', '火风鼎', '火水未济', '山水蒙', '风水涣', '天水讼', '天火同人'],
+  震: ['震为雷', '雷地豫', '雷水解', '雷风恒', '地风升', '水风井', '泽风大过', '泽雷随'],
+  巽: ['巽为风', '风天小畜', '风火家人', '风雷益', '天雷无妄', '火雷噬嗑', '山雷颐', '山风蛊'],
+  坎: ['坎为水', '水泽节', '水雷屯', '水火既济', '泽火革', '雷火丰', '地火明夷', '地水师'],
+  艮: ['艮为山', '山火贲', '山天大畜', '山泽损', '火泽睽', '天泽履', '风泽中孚', '风山渐'],
+  坤: ['坤为地', '地雷复', '地泽临', '地天泰', '雷天大壮', '泽天夬', '水天需', '水地比'],
+}
+
+/** 世爻位：本宫六、一世一…五世五、游魂四、归魂三；应=世±3 */
+const SHI_BY_GEN = [6, 1, 2, 3, 4, 5, 4, 3] as const
+
+function resolveGong(benName: string): { palace: string; gen: number; shi: number; ying: number } {
+  for (const [palace, list] of Object.entries(JING_GONG)) {
+    const gen = list.indexOf(benName)
+    if (gen >= 0) {
+      const shi = SHI_BY_GEN[gen]
+      const ying = ((shi + 2 - 1) % 6) + 1
+      return { palace, gen, shi, ying }
+    }
+  }
+  // 未命中时回落下卦宫、世六
+  return { palace: '坤', gen: 0, shi: 6, ying: 3 }
+}
 
 const HEX64: Record<string, string> = {}
 ;(() => {
@@ -87,12 +115,17 @@ function liuqin(selfWx: string, otherWx: string): string {
   return '—'
 }
 
-/** 世应：八纯世在上，其余按卦宫简化（阳世阴应交错） */
-function shiYing(palace: string): { shi: number; ying: number } {
-  const idx = BAGUA_ORDER.indexOf(palace as (typeof BAGUA_ORDER)[number])
-  const shi = ((idx % 6) + 1) as number
-  const ying = ((shi + 2 - 1) % 6) + 1
-  return { shi, ying }
+/** 旬空：日柱所在旬空亡两支 */
+function xunKong(dayGanZhi: string): string {
+  const GAN = '甲乙丙丁戊己庚辛壬癸'
+  const ZHI = '子丑寅卯辰巳午未申酉戌亥'
+  const gi = GAN.indexOf(dayGanZhi[0])
+  const zi = ZHI.indexOf(dayGanZhi[1])
+  if (gi < 0 || zi < 0) return '—'
+  const xunStart = ((zi - gi) % 12 + 12) % 12
+  const k1 = ZHI[(xunStart + 10) % 12]
+  const k2 = ZHI[(xunStart + 11) % 12]
+  return `${k1}${k2}`
 }
 
 export interface LiuyaoInput {
@@ -120,10 +153,12 @@ export interface LiuyaoChart {
   method: string
   question?: string
   dayGanZhi: string
+  xunKong: string
   benName: string
   zhiName: string
   upper: string
   lower: string
+  palace: string
   lines: YaoLine[]
   shi: number
   ying: number
@@ -193,21 +228,24 @@ export function buildLiuyaoChart(input: LiuyaoInput): LiuyaoChart {
   const benName = HEX64[`${upper}-${lower}`] || `${upper}${lower}`
   const zhiName = HEX64[`${zhiUpper}-${zhiLower}`] || `${zhiUpper}${zhiLower}`
 
-  const palace = lower
-  const { shi, ying } = shiYing(palace)
-  const selfWx = WX_GAN[NAJIA[palace]?.[0]?.[0] || '甲'] || '土'
-  const najia = NAJIA[palace] || NAJIA['坤']
+  const { palace, shi, ying } = resolveGong(benName)
+  // 纳甲：下三爻取下卦，上三爻取上卦（京氏装卦常用）
+  const najiaLower = NAJIA[lower] || NAJIA['坤']
+  const najiaUpper = NAJIA[upper] || NAJIA['坤']
+  const selfWx = WX_GAN[najiaLower[shi - 1]?.[0] || najiaLower[0][0]] || '土'
+  const kong = xunKong(dayGanZhi)
 
   const changingPositions: number[] = []
   const lines: YaoLine[] = yaos.map((value, i) => {
     const position = i + 1
     const changing = value === 6 || value === 9
     if (changing) changingPositions.push(position)
-    const ganZhi = najia[i]
+    const ganZhi = position <= 3 ? najiaLower[position - 1] : najiaUpper[position - 1]
     const wx = WX_GAN[ganZhi[0]] || '土'
     let mark = ''
     if (position === shi) mark = '世'
     if (position === ying) mark = mark ? '世应' : '应'
+    if (kong.includes(ganZhi[1])) mark = mark ? `${mark}空` : '空'
     return {
       position,
       value,
@@ -225,10 +263,12 @@ export function buildLiuyaoChart(input: LiuyaoInput): LiuyaoChart {
     method,
     question: typeof input.question === 'string' ? input.question : undefined,
     dayGanZhi,
+    xunKong: kong,
     benName,
     zhiName,
     upper,
     lower,
+    palace,
     lines,
     shi,
     ying,
@@ -247,8 +287,8 @@ export function formatLiuyaoForPrompt(chart: LiuyaoChart): string {
   return [
     '## 六爻盘面（算法事实）',
     chart.question ? `- 问事：${chart.question}` : null,
-    `- 起卦：${chart.method}；日柱 ${chart.dayGanZhi}`,
-    `- 本卦：${chart.benName}（上${chart.upper}下${chart.lower}）`,
+    `- 起卦：${chart.method}；日柱 ${chart.dayGanZhi}；旬空 ${chart.xunKong}`,
+    `- 本卦：${chart.benName}（上${chart.upper}下${chart.lower}）· 宫：${chart.palace}`,
     `- 之卦：${chart.zhiName}`,
     `- 世爻：第${chart.shi}爻 · 应爻：第${chart.ying}爻`,
     `- 动爻：${chart.changingPositions.length ? chart.changingPositions.join('、') : '无'}`,
@@ -277,7 +317,15 @@ export function buildLiuyaoRuleReading(chart: LiuyaoChart): string {
 }
 
 export function collectLiuyaoAllowedTerms(chart: LiuyaoChart): Set<string> {
-  const s = new Set<string>([chart.benName, chart.zhiName, chart.upper, chart.lower, chart.dayGanZhi])
+  const s = new Set<string>([
+    chart.benName,
+    chart.zhiName,
+    chart.upper,
+    chart.lower,
+    chart.palace,
+    chart.dayGanZhi,
+    chart.xunKong,
+  ])
   chart.lines.forEach((l) => {
     s.add(l.ganZhi)
     s.add(l.liuqin)

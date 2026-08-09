@@ -1,6 +1,6 @@
 """
-可选 Python sidecar：太乙 / 皇极完整法代理。
-无 kintaiyi/kinwangji 时返回 stub，由 Node JS lite 兜底。
+可选 Python sidecar：太乙 / 皇极 / 奇门 / 大六壬 完整法代理。
+缺依赖时返回 stub，由 Node JS 引擎兜底。
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ try:
 except ImportError as e:  # pragma: no cover
     raise SystemExit("请先 pip install fastapi uvicorn pydantic") from e
 
-app = FastAPI(title="lingjing-py-engine", version="0.1.0")
+app = FastAPI(title="lingjing-py-engine", version="0.2.0")
 
 
 class TaiyiReq(BaseModel):
@@ -34,23 +34,29 @@ class HuangjiReq(BaseModel):
     minute: int = 0
 
 
+class DateTimeReq(BaseModel):
+    year: int
+    month: int = 1
+    day: int = 1
+    hour: int = 12
+    minute: int = 0
+
+
 @app.get("/health")
 def health() -> dict[str, Any]:
-    has_taiyi = False
-    has_huangji = False
-    try:
-        import kintaiyi  # noqa: F401
-
-        has_taiyi = True
-    except Exception:
-        pass
-    try:
-        import kinwangji  # noqa: F401
-
-        has_huangji = True
-    except Exception:
-        pass
-    return {"ok": True, "kintaiyi": has_taiyi, "kinwangji": has_huangji}
+    flags = {
+        "kintaiyi": False,
+        "kinwangji": False,
+        "kinqimen": False,
+        "kinliuren": False,
+    }
+    for name in list(flags):
+        try:
+            __import__(name)
+            flags[name] = True
+        except Exception:
+            pass
+    return {"ok": True, **flags}
 
 
 @app.post("/taiyi")
@@ -85,4 +91,47 @@ def huangji(req: HuangjiReq) -> dict[str, Any]:
             "engine": "stub",
             "error": str(e),
             "hint": "未安装 kinwangji 时请使用 Node lingjing-huangji",
+        }
+
+
+@app.post("/qimen")
+def qimen(req: DateTimeReq) -> dict[str, Any]:
+    try:
+        # 常见 Python 包名：kinqimen（GPL，仅作可选旁证，不进 Node 运行时）
+        from kinqimen import kinqimen as kq
+
+        if hasattr(kq, "qimen"):
+            data = kq.qimen(req.year, req.month, req.day, req.hour, req.minute)
+        else:
+            data = str(kq)
+        return {"ok": True, "engine": "kinqimen", "data": data if isinstance(data, (dict, list, str)) else str(data)}
+    except Exception as e:
+        return {
+            "ok": False,
+            "engine": "stub",
+            "error": str(e),
+            "hint": "未安装 kinqimen；Node 侧已用 MIT qimendunjia-standalone 旁证",
+        }
+
+
+@app.post("/daliuren")
+def daliuren(req: DateTimeReq) -> dict[str, Any]:
+    try:
+        from kinliuren import kinliuren as kl
+
+        # 常见 API：Liuren(...).result(...)
+        if hasattr(kl, "Liuren"):
+            obj = kl.Liuren(req.year, req.month, req.day, req.hour)
+            data = obj.result() if hasattr(obj, "result") else obj
+        elif hasattr(kl, "liuren"):
+            data = kl.liuren(req.year, req.month, req.day, req.hour)
+        else:
+            data = str(kl)
+        return {"ok": True, "engine": "kinliuren", "data": data if isinstance(data, (dict, list, str)) else str(data)}
+    except Exception as e:
+        return {
+            "ok": False,
+            "engine": "stub",
+            "error": str(e),
+            "hint": "未安装 kinliuren 时请使用 Node lingjing-daliuren",
         }
