@@ -14,11 +14,12 @@ export const qimenAdapter: DivinationAdapter = {
     id: 'qimen',
     name: '奇门遁甲',
     category: 'zhanbu',
-    blurb: '时家拆补 · 值符值使 · MIT 旁证',
+    blurb: '时家拆补 · 值符值使 · MIT 旁证 · 须人工复核',
     engine: 'lingjing-qimen-chaibu + qimendunjia-standalone 旁证',
     defaultMethod: '时家拆补法',
     href: '/qimen',
     available: true,
+    requiresHumanReview: true,
   },
   build(input: DivinationBuildInput): DivinationBuildResult {
     let chart = buildQimenChart(input as QimenInput)

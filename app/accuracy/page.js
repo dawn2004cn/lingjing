@@ -125,6 +125,9 @@ export default function AccuracyPage() {
                   {s.researchOnly && (
                     <span className="text-[10px] text-[rgba(215,168,74,0.75)]">研究级</span>
                   )}
+                  {s.requiresHumanReview && (
+                    <span className="text-[10px] text-[rgba(196,92,74,0.9)]">须人工复核</span>
+                  )}
                 </div>
                 <p className="mt-1 text-xs text-[rgba(245,234,210,0.5)]">{s.engine}</p>
                 <p className="mt-0.5 text-[10px] text-[rgba(245,234,210,0.35)]">默认：{s.defaultMethod}</p>

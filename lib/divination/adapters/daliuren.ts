@@ -13,11 +13,12 @@ export const daliurenAdapter: DivinationAdapter = {
     id: 'daliuren',
     name: '大六壬',
     category: 'zhanbu',
-    blurb: '月将加时 · 四课三传 · 十二天将',
-    engine: 'lingjing-daliuren（自研九宗门简化）',
+    blurb: '月将加时 · 四课三传 · 十二天将 · 须人工复核',
+    engine: 'lingjing-daliuren（九宗门；边缘课体已分门）',
     defaultMethod: '昼贵/夜贵可切换',
     href: '/daliuren',
     available: true,
+    requiresHumanReview: true,
   },
   build(input: DivinationBuildInput): DivinationBuildResult {
     const chart = buildDaliurenChart(input as DaliurenInput)

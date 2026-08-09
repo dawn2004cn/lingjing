@@ -158,10 +158,28 @@ function shangShen(tianPan: string[], diZhi: string): string {
   return tianPan[zhiIndex(diZhi)]
 }
 
+function heJiGong(gan: string): string {
+  /** 天干五合 → 合干寄宫（别责阳日用） */
+  const pair: Record<string, string> = {
+    甲: '己',
+    己: '甲',
+    乙: '庚',
+    庚: '乙',
+    丙: '辛',
+    辛: '丙',
+    丁: '壬',
+    壬: '丁',
+    戊: '癸',
+    癸: '戊',
+  }
+  return JI_GONG[pair[gan] || ''] || '未'
+}
+
 export function takeSanChuan(
   ke: KeItem[],
   tianPan?: string[],
   dayGan?: string,
+  dayZhi?: string,
 ): { chu: string; zhong: string; mo: string; method: string } {
   const zei: KeItem[] = []
   const keShang: KeItem[] = []
@@ -173,6 +191,7 @@ export function takeSanChuan(
   const allFu = ke.every((k) => k.upper === k.lower)
   const chong = (a: string, b: string) => (zhiIndex(a) + 6) % 12 === zhiIndex(b)
   const allFan = ke.every((k) => chong(k.upper, k.lower))
+  const yang = '甲丙戊庚壬'.includes(dayGan || '')
 
   const pickBySheHai = (cands: KeItem[], label: string) => {
     let best = cands[0]
@@ -183,7 +202,6 @@ export function takeSanChuan(
         bestDepth = d
         best = c
       } else if (d === bestDepth) {
-        // 同深度：孟 > 仲 > 季；再比日干阴阳
         const rank = { 孟: 3, 仲: 2, 季: 1 }
         if (rank[mengZhongJi(c.lower)] > rank[mengZhongJi(best.lower)]) best = c
       }
@@ -193,6 +211,8 @@ export function takeSanChuan(
 
   let chu: string
   let method: string
+  let zhongOverride: string | null = null
+  let moOverride: string | null = null
 
   if (allFu) {
     chu = ke[0].upper
@@ -204,11 +224,9 @@ export function takeSanChuan(
     chu = zei[0].upper
     method = '贼克'
   } else if (zei.length > 1) {
-    // 比用：与日干比和者优先，否则涉害
-    const yangGan = '甲丙戊庚壬'.includes(dayGan || '')
     const bi = zei.filter((c) => {
       const yangZhi = '子寅辰午申戌'.includes(c.upper)
-      return yangGan === yangZhi
+      return yang === yangZhi
     })
     if (bi.length === 1) {
       chu = bi[0].upper
@@ -233,18 +251,46 @@ export function takeSanChuan(
     if (yao) {
       chu = yao.upper
       method = '遥克'
-    } else if (ke[0].upper === ke[1].upper && ke[0].upper === ke[2].upper) {
-      chu = ke[0].upper
-      method = '八专/别责（简化）'
     } else {
-      chu = ke[0].upper
-      method = '昴星（简化取日上）'
+      const isBaZhuan = !!(dayGan && dayZhi && JI_GONG[dayGan] === dayZhi)
+      const uniqueKe = new Set(ke.map((k) => `${k.upper}/${k.lower}`)).size
+      const incomplete = uniqueKe < 4 || ke[0].upper === ke[1].upper
+
+      if (isBaZhuan) {
+        // 八专：阳日从干上神顺数第三神，阴日逆数第三神
+        const start = ke[0].upper
+        chu = yang ? addZhi(start, 2) : addZhi(start, -2)
+        method = '八专'
+      } else if (incomplete && tianPan && dayGan) {
+        // 别责：阳日取合干寄宫上神，阴日取支冲上神；中传辰，末传辰上
+        chu = yang
+          ? shangShen(tianPan, heJiGong(dayGan))
+          : shangShen(tianPan, addZhi(dayZhi || ke[2].lower, 6))
+        zhongOverride = tianPan[zhiIndex('辰')]
+        moOverride = shangShen(tianPan, zhongOverride)
+        method = '别责'
+      } else if (tianPan) {
+        // 昴星：阳日支上为初、中传酉；阴日干上为初、中传卯
+        chu = yang ? ke[2].upper : ke[0].upper
+        zhongOverride = tianPan[zhiIndex(yang ? '酉' : '卯')]
+        moOverride = shangShen(tianPan, zhongOverride)
+        method = '昴星'
+      } else if (incomplete) {
+        chu = ke[0].upper
+        method = '别责（无天盘兜底）'
+      } else {
+        chu = yang ? ke[2].upper : ke[0].upper
+        method = '昴星（无天盘兜底）'
+      }
     }
   }
 
   let zhong: string
   let mo: string
-  if (tianPan && tianPan.length === 12) {
+  if (zhongOverride && moOverride) {
+    zhong = zhongOverride
+    mo = moOverride
+  } else if (tianPan && tianPan.length === 12) {
     zhong = shangShen(tianPan, chu)
     mo = shangShen(tianPan, zhong)
   } else {
@@ -297,7 +343,7 @@ export function buildDaliurenChart(input: DaliurenInput): DaliurenChart {
     { label: '四课（支阴）', upper: zhiYin, lower: zhiYang },
   ]
 
-  const sanChuan = takeSanChuan(ke, tianPan, dayGz[0])
+  const sanChuan = takeSanChuan(ke, tianPan, dayGz[0], dayGz[1])
   const grIdx = zhiIndex(guiRen)
   const tianJiangPan = diPan.map((z) => {
     const d = night
@@ -324,7 +370,7 @@ export function buildDaliurenChart(input: DaliurenInput): DaliurenChart {
     ke,
     sanChuan,
     tianJiangOnChuan,
-    engine: 'lingjing-daliuren@2',
+    engine: 'lingjing-daliuren@3',
   }
 }
 
@@ -357,7 +403,8 @@ export function buildDaliurenRuleReading(chart: DaliurenChart): string {
     `- 贵人${chart.guiRen}临${chart.dayNight}；空亡看 ${chart.xunKong}。`,
     '',
     '## 解读边界',
-    '- 四课三传、月将贵人、天将盘为算法输出；别责八专边缘课体仍可能简化，重大事项请人工复核。',
+    '- 四课三传、月将贵人、天将盘为算法输出；重大事项请人工复核，并可对照 py-engine/kinliuren。',
+    '- 别责/八专/昴星已按通行九宗门分门取初传与中末；流派细节仍可能差异。',
   ].join('\n')
 }
 

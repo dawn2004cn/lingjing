@@ -13,7 +13,8 @@ export default function DaliurenPage() {
         <CastPanel
           system="daliuren"
           title="大六壬"
-          blurb="月将加时，起四课三传、十二天将。九宗门边缘课体为简化实现。"
+          blurb="月将加时，起四课三传、十二天将；九宗门含别责、八专、昴星等分门取法。"
+          requiresHumanReview
           fields={[
             { key: 'date', label: '日期', type: 'date' },
             { key: 'clock', label: '钟点', type: 'time' },

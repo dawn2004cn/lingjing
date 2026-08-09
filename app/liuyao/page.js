@@ -13,14 +13,14 @@ export default function LiuyaoPage() {
         <CastPanel
           system="liuyao"
           title="易经六爻"
-          blurb="纳甲装卦：六亲、六兽、世应、动爻。自研实现，不引入 GPL 依赖。"
+          blurb="纳甲装卦：六亲、六兽、世应、日月建冲合、动爻。自研实现，不引入 GPL 依赖。「时间起卦」为可复现伪随机映射（同输入同卦），非古典年月日时求余法。"
           fields={[
             {
               key: 'method',
               label: '起卦法',
               type: 'select',
               options: [
-                { value: 'time', label: '时间起卦' },
+                { value: 'time', label: '时间起卦（可复现伪随机）' },
                 { value: 'coin', label: '铜钱模拟' },
                 { value: 'manual', label: '手动六爻（下方填值）' },
               ],

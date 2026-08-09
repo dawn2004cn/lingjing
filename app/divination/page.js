@@ -45,6 +45,9 @@ export default function DivinationHubPage() {
                   {s.researchOnly && (
                     <div className="mt-2 text-[10px] text-[rgba(215,168,74,0.75)]">研究级</div>
                   )}
+                  {s.requiresHumanReview && (
+                    <div className="mt-2 text-[10px] text-[rgba(196,92,74,0.9)]">须人工复核</div>
+                  )}
                 </Link>
               ))}
             </div>

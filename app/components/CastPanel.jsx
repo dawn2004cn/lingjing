@@ -12,6 +12,7 @@ export default function CastPanel({
   title,
   blurb,
   researchOnly,
+  requiresHumanReview,
   fields,
   initial = {},
 }) {
@@ -51,6 +52,11 @@ export default function CastPanel({
         {researchOnly && (
           <p className="mt-2 text-xs text-[rgba(215,168,74,0.85)] border border-[var(--gold)]/30 rounded-md px-3 py-2">
             研究级模块：侧重宏观/结构演示，不作日常一事一占的绝对断言。
+          </p>
+        )}
+        {requiresHumanReview && (
+          <p className="mt-2 text-xs text-[rgba(196,92,74,0.95)] border border-[var(--cinnabar)]/35 rounded-md px-3 py-2">
+            须人工复核：本系统含自研简化或边界课体；排盘事实可复现，重大决策请对照旁证并人工核验，勿直接作绝对断言。
           </p>
         )}
       </div>

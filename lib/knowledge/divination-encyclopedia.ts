@@ -84,6 +84,22 @@ export const DIVINATION_ENCYCLOPEDIA: EncyclopediaEntry[] = [
     body: '正格依月令透干与日主强弱定喜忌；从格、化气等为特殊格局，须严条件，简判不作定论。',
     terms: ['月令', '用神', '正格', '从格', '合化', '十神'],
   },
+  {
+    system: 'ziwei',
+    slug: 'shi-er-gong',
+    title: '紫微 · 十二宫与主星',
+    summary: '以命宫起十二宫，安十四主星与四化论命。',
+    body: '命宫为终身气运提纲，身宫看行为际遇。紫微、天机、太阳、武曲、天同、廉贞、天府、太阴、贪狼、巨门、天相、天梁、七杀、破军为十四主星。四化（禄权科忌）看催动。',
+    terms: ['命宫', '身宫', '十四主星', '四化', '大限', '流年'],
+  },
+  {
+    system: 'jinkou',
+    slug: 'si-wei',
+    title: '金口诀 · 四位',
+    summary: '人元、贵神、将神、地分，六壬简式。',
+    body: '地分为体，将神为用；贵神主人事，人元司天时。月将加正时起将神，贵人加临取贵神，遁干寄宫得人元。',
+    terms: ['人元', '贵神', '将神', '地分', '月将', '金口诀'],
+  },
 ]
 
 export function listEncyclopedia(system?: string) {

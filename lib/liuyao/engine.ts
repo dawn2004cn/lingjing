@@ -62,6 +62,39 @@ const ALL_LIUQIN = ['父母', '兄弟', '子孙', '妻财', '官鬼'] as const
 
 const LIUSHOU = ['青龙', '朱雀', '勾陈', '螣蛇', '白虎', '玄武'] as const
 
+/** 地支六合 */
+const LIUHE: Record<string, string> = {
+  子: '丑',
+  丑: '子',
+  寅: '亥',
+  亥: '寅',
+  卯: '戌',
+  戌: '卯',
+  辰: '酉',
+  酉: '辰',
+  巳: '申',
+  申: '巳',
+  午: '未',
+  未: '午',
+}
+
+const ZHI12 = '子丑寅卯辰巳午未申酉戌亥'
+
+function isChongZhi(a: string, b: string) {
+  return (ZHI12.indexOf(a) + 6) % 12 === ZHI12.indexOf(b)
+}
+
+function yueRiMarks(branch: string, monthZhi: string, dayZhi: string): string[] {
+  const marks: string[] = []
+  if (branch === monthZhi) marks.push('月建')
+  if (branch === dayZhi) marks.push('日建')
+  if (LIUHE[branch] === monthZhi) marks.push('月合')
+  if (LIUHE[branch] === dayZhi) marks.push('日合')
+  if (isChongZhi(branch, monthZhi)) marks.push('月冲')
+  if (isChongZhi(branch, dayZhi)) marks.push('日冲')
+  return marks
+}
+
 /** 京氏八宫：本宫→一世…五世→游魂→归魂（共 8 卦） */
 const JING_GONG: Record<string, string[]> = {
   乾: ['乾为天', '天风姤', '天山遁', '天地否', '风地观', '山地剥', '火地晋', '火天大有'],
@@ -159,6 +192,8 @@ export interface YaoLine {
   liuqin: string
   animal: string
   mark: string
+  /** 月建/日建/合冲等 */
+  yueRi: string[]
   /** 变爻纳甲（动爻才有） */
   bianGanZhi?: string
   bianWx?: string
@@ -187,6 +222,7 @@ export interface LiuyaoChart {
 }
 
 function timeToYaos(date: string, clock: string): YaoValue[] {
+  /** 可复现伪随机：同日期钟点 → 同六爻；非古典「年月日时求余」起卦 */
   const [y, m, d] = date.split('-').map(Number)
   const [hh, mm] = clock.split(':').map(Number)
   const seed = y * 10000 + m * 100 + d + (hh || 0) * 60 + (mm || 0)
@@ -195,7 +231,6 @@ function timeToYaos(date: string, clock: string): YaoValue[] {
   for (let i = 0; i < 6; i++) {
     s = (s * 1103515245 + 12345) >>> 0
     const r = s % 8
-    // 映射到 6–9，保证可有动静
     out.push((6 + (r % 4)) as YaoValue)
   }
   return out
@@ -214,16 +249,23 @@ function coinYaos(seed = Date.now()): YaoValue[] {
 }
 
 export function buildLiuyaoChart(input: LiuyaoInput): LiuyaoChart {
-  const method = input.method || (input.yaoValues ? 'manual' : 'time')
+  const methodRaw = input.method || (input.yaoValues ? 'manual' : 'time')
   let yaos = input.yaoValues
   if (!yaos || yaos.length !== 6) {
-    if (method === 'coin') yaos = coinYaos()
+    if (methodRaw === 'coin') yaos = coinYaos()
     else {
       const date = input.date || new Date().toISOString().slice(0, 10)
       const clock = input.clock || '12:00'
       yaos = timeToYaos(date, clock)
     }
   }
+
+  const method =
+    methodRaw === 'time'
+      ? 'time（可复现伪随机）'
+      : methodRaw === 'coin'
+        ? 'coin（铜钱模拟）'
+        : 'manual'
 
   const date = input.date || new Date().toISOString().slice(0, 10)
   const [y, m, d] = date.split('-').map(Number)
@@ -232,6 +274,8 @@ export function buildLiuyaoChart(input: LiuyaoInput): LiuyaoChart {
   const lunar = solar.getLunar()
   const dayGanZhi = lunar.getDayInGanZhi()
   const monthGanZhi = lunar.getMonthInGanZhi()
+  const monthZhi = monthGanZhi[1]
+  const dayZhi = dayGanZhi[1]
   const dayGan = dayGanZhi[0]
   const animalStart = '甲乙丙丁戊己'.indexOf(dayGan)
   const startIdx = animalStart >= 0 ? animalStart % 6 : 0
@@ -258,7 +302,6 @@ export function buildLiuyaoChart(input: LiuyaoInput): LiuyaoChart {
   const zhiNajiaUpper = NAJIA[zhiUpper] || NAJIA['坤']
   const kong = xunKong(dayGanZhi)
 
-  // 本宫纯卦纳甲 → 伏神候选
   const pureNajia = NAJIA[palace] || NAJIA['坤']
   const pureLiuqin = pureNajia.map((gz) => liuqin(palaceWx, WX_ZHI[gz[1]] || '土'))
 
@@ -270,10 +313,12 @@ export function buildLiuyaoChart(input: LiuyaoInput): LiuyaoChart {
     const ganZhi = position <= 3 ? najiaLower[position - 1] : najiaUpper[position - 1]
     const branchWx = WX_ZHI[ganZhi[1]] || '土'
     const lq = liuqin(palaceWx, branchWx)
+    const yueRi = yueRiMarks(ganZhi[1], monthZhi, dayZhi)
     let mark = ''
     if (position === shi) mark = '世'
     if (position === ying) mark = mark ? '世应' : '应'
     if (kong.includes(ganZhi[1])) mark = mark ? `${mark}空` : '空'
+    if (yueRi.length) mark = mark ? `${mark}${yueRi.join('')}` : yueRi.join('')
 
     const line: YaoLine = {
       position,
@@ -285,6 +330,7 @@ export function buildLiuyaoChart(input: LiuyaoInput): LiuyaoChart {
       liuqin: lq,
       animal: LIUSHOU[(startIdx + i) % 6],
       mark,
+      yueRi,
     }
     if (changing) {
       const bgz = position <= 3 ? zhiNajiaLower[position - 1] : zhiNajiaUpper[position - 1]
@@ -296,7 +342,6 @@ export function buildLiuyaoChart(input: LiuyaoInput): LiuyaoChart {
     return line
   })
 
-  // 伏神：本卦缺的六亲，从本宫纯卦同位爻伏出
   const present = new Set(lines.map((l) => l.liuqin))
   const fuShenList: LiuyaoChart['fuShenList'] = []
   for (const lqName of ALL_LIUQIN) {
@@ -366,6 +411,9 @@ export function formatLiuyaoForPrompt(chart: LiuyaoChart): string {
 }
 
 export function buildLiuyaoRuleReading(chart: LiuyaoChart): string {
+  const yueRiHits = chart.lines
+    .filter((l) => l.yueRi.length)
+    .map((l) => `第${l.position}爻${l.ganZhi}（${l.yueRi.join('、')}）`)
   return [
     formatLiuyaoForPrompt(chart),
     '',
@@ -377,9 +425,15 @@ export function buildLiuyaoRuleReading(chart: LiuyaoChart): string {
     chart.fuShenList.length
       ? `- 有伏神 ${chart.fuShenList.map((f) => f.liuqin).join('、')}，事机隐伏。`
       : null,
+    yueRiHits.length
+      ? `- 日月建合冲：${yueRiHits.join('；')}。月建为提纲，日建为用神旺衰参照；冲则动摇，合则牵绊。`
+      : `- 月柱 ${chart.monthGanZhi}、日柱 ${chart.dayGanZhi}：本卦爻支未见直接月建/日建/六合冲标记。`,
     '',
     '## 解读边界',
-    '- 卦名、纳甲、六亲、世应、伏神为算法输出，润色不得改写。',
+    '- 卦名、纳甲、六亲、世应、伏神、日月建合冲为算法输出，润色不得改写。',
+    chart.method.includes('伪随机')
+      ? '- 时间起卦为可复现伪随机映射（同输入同卦），非古典年月日时求余起卦；正式占断请用铜钱或手动装卦。'
+      : null,
   ]
     .filter((x) => x != null)
     .join('\n')
@@ -413,6 +467,8 @@ export function collectLiuyaoAllowedTerms(chart: LiuyaoChart): Set<string> {
     s.add(f.ganZhi)
     s.add(f.liuqin)
   })
-  ;['世', '应', '父母', '兄弟', '子孙', '妻财', '官鬼', '伏神'].forEach((t) => s.add(t))
+  ;['世', '应', '父母', '兄弟', '子孙', '妻财', '官鬼', '伏神', '月建', '日建', '月合', '日合', '月冲', '日冲'].forEach(
+    (t) => s.add(t),
+  )
   return s
 }

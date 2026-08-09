@@ -10,6 +10,7 @@ import { getAdapter, listSystems, isValidSystemId } from '../lib/divination/regi
 import { detectZipingPatterns } from '../lib/bazi/ziping'
 import { takeSanChuan } from '../lib/daliuren/engine'
 import { listClassicsBySystem } from '../lib/knowledge/divination-classics'
+import { listEncyclopedia } from '../lib/knowledge/divination-encyclopedia'
 import { countStrokes } from '../lib/meihua/engine'
 import { fetchPyEngine } from '../lib/divination/py-engine-client'
 import { findCityLongitude } from '../lib/ziwei/cities'
@@ -720,6 +721,14 @@ console.log('\n=== 20. 占卜集大成适配器冒烟 ===')
   assert('bazi 有效', isValidSystemId('bazi'))
   assert('meihua 有效', isValidSystemId('meihua'))
   assert('jinkou 有效', isValidSystemId('jinkou'))
+  assert(
+    '奇门须人工复核标记',
+    systems.find((s) => s.id === 'qimen')?.requiresHumanReview === true,
+  )
+  assert(
+    '大六壬须人工复核标记',
+    systems.find((s) => s.id === 'daliuren')?.requiresHumanReview === true,
+  )
 
   const meihua = getAdapter('meihua')!.build({
     method: 'number',
@@ -777,6 +786,22 @@ console.log('\n=== 20. 占卜集大成适配器冒烟 ===')
   assert('六爻六爻齐全', (ly.chart as any).lines?.length === 6)
   assert('六爻有宫五行', !!(ly.chart as any).palaceWx)
   assert('六爻规则含伏神栏', ly.ruleReading.includes('伏神'))
+  assert('六爻有日月建字段', Array.isArray((ly.chart as any).lines?.[0]?.yueRi))
+  assert('六爻规则含日月建合冲', ly.ruleReading.includes('日月建') || ly.ruleReading.includes('月柱'))
+
+  const lyTime = getAdapter('liuyao')!.build({
+    method: 'time',
+    date: '2024-06-15',
+    clock: '12:00',
+  })
+  const lyTime2 = getAdapter('liuyao')!.build({
+    method: 'time',
+    date: '2024-06-15',
+    clock: '12:00',
+  })
+  assert('六爻时间起卦可复现', (lyTime.chart as any).benName === (lyTime2.chart as any).benName)
+  assert('六爻时间起卦标明伪随机', String((lyTime.chart as any).method).includes('伪随机'))
+  assert('六爻规则含伪随机边界', lyTime.ruleReading.includes('伪随机'))
 
   const jk = getAdapter('jinkou')!.build({ date: '2024-06-15', clock: '12:00', difen: '午' })
   assert('金口有人元', !!(jk.chart as any).renYuan?.gan)
@@ -801,6 +826,8 @@ console.log('\n=== 20. 占卜集大成适配器冒烟 ===')
   assert('大六壬三传', !!(dlr.chart as any).sanChuan?.chu)
   assert('大六壬天将盘', (dlr.chart as any).tianJiangPan?.length === 12)
   assert('大六壬旬空', !!(dlr.chart as any).xunKong)
+  assert('大六壬规则含复核', dlr.ruleReading.includes('人工复核'))
+  assert('奇门规则含复核', qm.ruleReading.includes('人工复核'))
 
   const ty = getAdapter('taiyi')!.build({ date: '2024-06-15', jiStyle: 0 })
   assert('太乙积年', typeof (ty.chart as any).jiNian === 'number')
@@ -865,14 +892,44 @@ console.log('\n=== 21. 大六壬九宗门简判 + 原典/笔画 ===')
   ])
   assert('克贼取法', kezei.method === '克贼', kezei.method)
 
-  // 无克无贼且非伏吟 → 昴星
+  // 无克无贼且非伏吟 → 昴星（无天盘时兜底）
   const mao = takeSanChuan([
     { label: '1', upper: '子', lower: '寅' },
     { label: '2', upper: '丑', lower: '辰' },
     { label: '3', upper: '寅', lower: '卯' },
     { label: '4', upper: '卯', lower: '巳' },
   ])
-  assert('昴星简化', mao.method.includes('昴星'), mao.method)
+  assert('昴星取法', mao.method.includes('昴星'), mao.method)
+
+  // 八专：日干寄宫=日支，无克无贼无遥克
+  const bazhuan = takeSanChuan(
+    [
+      { label: '1', upper: '子', lower: '寅' },
+      { label: '2', upper: '亥', lower: '子' },
+      { label: '3', upper: '卯', lower: '卯' },
+      { label: '4', upper: '辰', lower: '辰' },
+    ],
+    undefined,
+    '甲',
+    '寅',
+  )
+  assert('八专取法', bazhuan.method === '八专', bazhuan.method)
+  assert('八专顺数三', bazhuan.chu === '寅', bazhuan.chu)
+
+  // 别责：课不全（一二课同上神）+ 有天盘
+  const tianPan = '子丑寅卯辰巳午未申酉戌亥'.split('')
+  const bieze = takeSanChuan(
+    [
+      { label: '1', upper: '子', lower: '寅' },
+      { label: '2', upper: '子', lower: '子' },
+      { label: '3', upper: '亥', lower: '亥' },
+      { label: '4', upper: '酉', lower: '酉' },
+    ],
+    tianPan,
+    '甲',
+    '子',
+  )
+  assert('别责取法', bieze.method === '别责', bieze.method)
 
   const stroke = countStrokes('求财')
   assert('笔画可复现', stroke.total === countStrokes('求财').total && stroke.total > 0)
@@ -880,10 +937,24 @@ console.log('\n=== 21. 大六壬九宗门简判 + 原典/笔画 ===')
   const meihuaStroke = getAdapter('meihua')!.build({ method: 'stroke', text: '求财' })
   assert('汉字起卦有本卦', !!(meihuaStroke.chart as any).ben?.name)
 
-  for (const sys of ['bazi', 'meihua', 'liuyao', 'xiaoliuren', 'qimen', 'daliuren', 'jinkou', 'taiyi', 'huangji', 'tieban']) {
+  for (const sys of [
+    'bazi',
+    'ziwei',
+    'meihua',
+    'liuyao',
+    'xiaoliuren',
+    'qimen',
+    'daliuren',
+    'jinkou',
+    'taiyi',
+    'huangji',
+    'tieban',
+  ]) {
     const classics = listClassicsBySystem(sys)
     assert(`${sys} 有原典选章`, classics.length >= 1)
   }
+  assert('紫微百科条目', listEncyclopedia('ziwei').length >= 1)
+  assert('金口百科条目', listEncyclopedia('jinkou').length >= 1)
 }
 
 void (async () => {

@@ -34,6 +34,8 @@ export interface DivinationMeta {
   available: boolean
   /** research 级：宏观/免责 */
   researchOnly?: boolean
+  /** 产品强制提示：重大事项须人工复核（奇门/壬式等） */
+  requiresHumanReview?: boolean
 }
 
 export interface DivinationBuildInput {

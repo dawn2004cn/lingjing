@@ -27,6 +27,18 @@ export const DIVINATION_CLASSICS: ClassicExcerpt[] = [
     terms: ['日主', '月令', '用神', '提纲'],
   },
   {
+    system: 'ziwei',
+    slug: 'ziwei-doushu-excerpt',
+    title: '紫微斗数 · 命宫总义（选）',
+    source: '《紫微斗数》通行义',
+    dynasty: '不详',
+    paragraphs: [
+      '以出生年月日時安命宫，顺布十二宫，再安十四主星与辅弼煞曜。',
+      '紫微居中为尊，天府为财官之主；四化催动看流年际遇，大限看十年气运。',
+    ],
+    terms: ['命宫', '十四主星', '四化', '大限'],
+  },
+  {
     system: 'meihua',
     slug: 'meihua-yishu-excerpt',
     title: '梅花易数 · 起卦总义（选）',

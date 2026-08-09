@@ -13,7 +13,8 @@ export default function QimenPage() {
         <CastPanel
           system="qimen"
           title="奇门遁甲"
-          blurb="时家拆补法定局，排布地盘、天盘、九星、八门、八神。重大决策请人工复核。"
+          blurb="时家拆补法定局，排布地盘、天盘、九星、八门、八神；并附 MIT 旁证交叉参考。"
+          requiresHumanReview
           fields={[
             { key: 'date', label: '日期', type: 'date' },
             { key: 'clock', label: '钟点', type: 'time' },
