@@ -10,7 +10,8 @@
 | liuyao | 易经六爻 | 占卜 | lingjing-liuyao（自研） | 时间/铜钱 | `/liuyao` | §20 |
 | xiaoliuren | 小六壬 | 占卜 | lingjing-xiaoliuren | 月日时顺推 | `/xiaoliuren` | §20 |
 | qimen | 奇门遁甲 | 占卜 | lingjing-qimen-chaibu + MIT 旁证 | 时家拆补 + 值符值使 | `/qimen` | §20 |
-| daliuren | 大六壬 | 占卜 | lingjing-daliuren（可并 kinliuren） | 天盘递取中末；九宗门 | `/daliuren` | §20–21 |
+| daliuren | 大六壬 | 占卜 | lingjing-daliuren（可并 kinliuren） | 节气月将；涉害深度；天将全盘 | `/daliuren` | §20–21 |
+| jinkou | 金口诀 | 占卜 | lingjing-jinkou；可并 kinjinkou | 四位：人元贵神将神地分 | `/jinkou` | §20 |
 | taiyi | 太乙神数 | 研究 | lite JS；API 可并 py-engine | 年计 | `/taiyi` | §20 |
 | huangji | 皇极经世 | 研究 | lingjing-huangji；可并 py-engine | 元会运世 | `/huangji` | §20 |
 | tieban | 铁版神数 | 研究 | 结构盘（无条文） | 四柱→本命数 | `/tieban` | §20 |
@@ -23,9 +24,9 @@
 
 ## Python sidecar（太乙/皇极/奇门/大六壬完整法）
 
-见 `services/py-engine/`。设置 `PY_ENGINE_URL` 后，`POST /api/divination/{taiyi|huangji|qimen|daliuren}` 会把 sidecar 结果写入 `meta.pyEngine`，并追加到规则文案（保证有输出）。未配置时跳过。
+见 `services/py-engine/`。设置 `PY_ENGINE_URL` 后，`POST /api/divination/{taiyi|huangji|qimen|daliuren|jinkou}` 会把 sidecar 结果写入 `meta.pyEngine`，并追加到规则文案（保证有输出）。未配置时跳过。
 
-奇门 Node 侧另接 MIT 包 `qimendunjia-standalone` 作旁证（**不**引入 GPL 的 kinqimen 到运行时依赖）。
+奇门 Node 侧另接 MIT 包 `qimendunjia-standalone` 作旁证（**不**引入 GPL 的 kinqimen 到运行时依赖）。金口诀完整法旁证为 MIT `kinjinkou`。
 
 ## 知识库
 

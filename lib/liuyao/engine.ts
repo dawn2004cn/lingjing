@@ -37,6 +37,16 @@ const WX_GAN: Record<string, string> = {
   庚: '金', 辛: '金', 壬: '水', 癸: '水',
 }
 
+const WX_ZHI: Record<string, string> = {
+  子: '水', 丑: '土', 寅: '木', 卯: '木', 辰: '土', 巳: '火',
+  午: '火', 未: '土', 申: '金', 酉: '金', 戌: '土', 亥: '水',
+}
+
+/** 八卦宫五行 */
+const PALACE_WX: Record<string, string> = {
+  乾: '金', 兑: '金', 离: '火', 震: '木', 巽: '木', 坎: '水', 艮: '土', 坤: '土',
+}
+
 const LIUQIN_MAP: Record<string, string> = {
   同我: '兄弟',
   我生: '子孙',
@@ -47,6 +57,8 @@ const LIUQIN_MAP: Record<string, string> = {
 
 const SHENG: Record<string, string> = { 木: '火', 火: '土', 土: '金', 金: '水', 水: '木' }
 const KE: Record<string, string> = { 木: '土', 土: '水', 水: '火', 火: '金', 金: '木' }
+
+const ALL_LIUQIN = ['父母', '兄弟', '子孙', '妻财', '官鬼'] as const
 
 const LIUSHOU = ['青龙', '朱雀', '勾陈', '螣蛇', '白虎', '玄武'] as const
 
@@ -147,19 +159,28 @@ export interface YaoLine {
   liuqin: string
   animal: string
   mark: string
+  /** 变爻纳甲（动爻才有） */
+  bianGanZhi?: string
+  bianWx?: string
+  bianLiuqin?: string
+  /** 本爻下伏神 */
+  fuShen?: { ganZhi: string; wx: string; liuqin: string }
 }
 
 export interface LiuyaoChart {
   method: string
   question?: string
   dayGanZhi: string
+  monthGanZhi: string
   xunKong: string
   benName: string
   zhiName: string
   upper: string
   lower: string
   palace: string
+  palaceWx: string
   lines: YaoLine[]
+  fuShenList: { position: number; ganZhi: string; wx: string; liuqin: string }[]
   shi: number
   ying: number
   changingPositions: number[]
@@ -210,30 +231,36 @@ export function buildLiuyaoChart(input: LiuyaoInput): LiuyaoChart {
   const solar = Solar.fromYmdHms(y, m, d, hh || 12, 0, 0)
   const lunar = solar.getLunar()
   const dayGanZhi = lunar.getDayInGanZhi()
+  const monthGanZhi = lunar.getMonthInGanZhi()
   const dayGan = dayGanZhi[0]
   const animalStart = '甲乙丙丁戊己'.indexOf(dayGan)
   const startIdx = animalStart >= 0 ? animalStart % 6 : 0
 
   const benLines = yaos.map((v) => (v === 7 || v === 9 ? 1 : 0))
-  const zhiLines = yaos.map((v) => {
-    if (v === 9) return 0 // 老阳变阴
-    if (v === 6) return 1 // 老阴变阳
-    return v === 7 ? 1 : 0 // 少阳/少阴不变
+  const zhiLinesArr = yaos.map((v) => {
+    if (v === 9) return 0
+    if (v === 6) return 1
+    return v === 7 ? 1 : 0
   })
 
   const lower = linesToGua(benLines.slice(0, 3) as [number, number, number])
   const upper = linesToGua(benLines.slice(3, 6) as [number, number, number])
-  const zhiLower = linesToGua(zhiLines.slice(0, 3) as [number, number, number])
-  const zhiUpper = linesToGua(zhiLines.slice(3, 6) as [number, number, number])
+  const zhiLower = linesToGua(zhiLinesArr.slice(0, 3) as [number, number, number])
+  const zhiUpper = linesToGua(zhiLinesArr.slice(3, 6) as [number, number, number])
   const benName = HEX64[`${upper}-${lower}`] || `${upper}${lower}`
   const zhiName = HEX64[`${zhiUpper}-${zhiLower}`] || `${zhiUpper}${zhiLower}`
 
   const { palace, shi, ying } = resolveGong(benName)
-  // 纳甲：下三爻取下卦，上三爻取上卦（京氏装卦常用）
+  const palaceWx = PALACE_WX[palace] || '土'
   const najiaLower = NAJIA[lower] || NAJIA['坤']
   const najiaUpper = NAJIA[upper] || NAJIA['坤']
-  const selfWx = WX_GAN[najiaLower[shi - 1]?.[0] || najiaLower[0][0]] || '土'
+  const zhiNajiaLower = NAJIA[zhiLower] || NAJIA['坤']
+  const zhiNajiaUpper = NAJIA[zhiUpper] || NAJIA['坤']
   const kong = xunKong(dayGanZhi)
+
+  // 本宫纯卦纳甲 → 伏神候选
+  const pureNajia = NAJIA[palace] || NAJIA['坤']
+  const pureLiuqin = pureNajia.map((gz) => liuqin(palaceWx, WX_ZHI[gz[1]] || '土'))
 
   const changingPositions: number[] = []
   const lines: YaoLine[] = yaos.map((value, i) => {
@@ -241,35 +268,66 @@ export function buildLiuyaoChart(input: LiuyaoInput): LiuyaoChart {
     const changing = value === 6 || value === 9
     if (changing) changingPositions.push(position)
     const ganZhi = position <= 3 ? najiaLower[position - 1] : najiaUpper[position - 1]
-    const wx = WX_GAN[ganZhi[0]] || '土'
+    const branchWx = WX_ZHI[ganZhi[1]] || '土'
+    const lq = liuqin(palaceWx, branchWx)
     let mark = ''
     if (position === shi) mark = '世'
     if (position === ying) mark = mark ? '世应' : '应'
     if (kong.includes(ganZhi[1])) mark = mark ? `${mark}空` : '空'
-    return {
+
+    const line: YaoLine = {
       position,
       value,
       yinYang: value === 7 || value === 9 ? '阳' : '阴',
       changing,
       ganZhi,
-      wx,
-      liuqin: liuqin(selfWx, wx),
+      wx: branchWx,
+      liuqin: lq,
       animal: LIUSHOU[(startIdx + i) % 6],
       mark,
     }
+    if (changing) {
+      const bgz = position <= 3 ? zhiNajiaLower[position - 1] : zhiNajiaUpper[position - 1]
+      const bwx = WX_ZHI[bgz[1]] || '土'
+      line.bianGanZhi = bgz
+      line.bianWx = bwx
+      line.bianLiuqin = liuqin(palaceWx, bwx)
+    }
+    return line
   })
+
+  // 伏神：本卦缺的六亲，从本宫纯卦同位爻伏出
+  const present = new Set(lines.map((l) => l.liuqin))
+  const fuShenList: LiuyaoChart['fuShenList'] = []
+  for (const lqName of ALL_LIUQIN) {
+    if (present.has(lqName)) continue
+    const idx = pureLiuqin.indexOf(lqName)
+    if (idx < 0) continue
+    const gz = pureNajia[idx]
+    const wx = WX_ZHI[gz[1]] || '土'
+    const position = idx + 1
+    const item = { position, ganZhi: gz, wx, liuqin: lqName }
+    fuShenList.push(item)
+    if (lines[idx] && !lines[idx].fuShen) {
+      lines[idx].fuShen = { ganZhi: gz, wx, liuqin: lqName }
+      lines[idx].mark = lines[idx].mark ? `${lines[idx].mark}伏` : '伏'
+    }
+  }
 
   return {
     method,
     question: typeof input.question === 'string' ? input.question : undefined,
     dayGanZhi,
+    monthGanZhi,
     xunKong: kong,
     benName,
     zhiName,
     upper,
     lower,
     palace,
+    palaceWx,
     lines,
+    fuShenList,
     shi,
     ying,
     changingPositions,
@@ -280,21 +338,27 @@ export function formatLiuyaoForPrompt(chart: LiuyaoChart): string {
   const rows = chart.lines
     .slice()
     .reverse()
-    .map(
-      (l) =>
-        `| ${l.position} | ${l.value} | ${l.yinYang}${l.changing ? '动' : ''} | ${l.ganZhi} | ${l.liuqin} | ${l.animal} | ${l.mark || '—'} |`,
-    )
+    .map((l) => {
+      const bian = l.bianGanZhi ? `→${l.bianGanZhi}${l.bianLiuqin || ''}` : ''
+      const fu = l.fuShen ? `伏${l.fuShen.ganZhi}${l.fuShen.liuqin}` : ''
+      return `| ${l.position} | ${l.value} | ${l.yinYang}${l.changing ? '动' : ''} | ${l.ganZhi}${bian} | ${l.liuqin} | ${l.animal} | ${l.mark || '—'} | ${fu || '—'} |`
+    })
+  const fuLines =
+    chart.fuShenList.length > 0
+      ? chart.fuShenList.map((f) => `- 伏神：第${f.position}爻下 ${f.ganZhi} ${f.liuqin}（${f.wx}）`)
+      : ['- 伏神：无（六亲俱全）']
   return [
     '## 六爻盘面（算法事实）',
     chart.question ? `- 问事：${chart.question}` : null,
-    `- 起卦：${chart.method}；日柱 ${chart.dayGanZhi}；旬空 ${chart.xunKong}`,
-    `- 本卦：${chart.benName}（上${chart.upper}下${chart.lower}）· 宫：${chart.palace}`,
+    `- 起卦：${chart.method}；月柱 ${chart.monthGanZhi}；日柱 ${chart.dayGanZhi}；旬空 ${chart.xunKong}`,
+    `- 本卦：${chart.benName}（上${chart.upper}下${chart.lower}）· 宫：${chart.palace}（${chart.palaceWx}）`,
     `- 之卦：${chart.zhiName}`,
     `- 世爻：第${chart.shi}爻 · 应爻：第${chart.ying}爻`,
     `- 动爻：${chart.changingPositions.length ? chart.changingPositions.join('、') : '无'}`,
+    ...fuLines,
     '',
-    '| 爻位 | 值 | 阴阳 | 纳甲 | 六亲 | 六兽 | 标记 |',
-    '|---|---|---|---|---|---|---|',
+    '| 爻位 | 值 | 阴阳 | 纳甲 | 六亲 | 六兽 | 标记 | 伏神 |',
+    '|---|---|---|---|---|---|---|---|',
     ...rows,
   ]
     .filter(Boolean)
@@ -306,14 +370,19 @@ export function buildLiuyaoRuleReading(chart: LiuyaoChart): string {
     formatLiuyaoForPrompt(chart),
     '',
     '## 规则断语',
-    `- 以世爻为我、应爻为事/对方；动爻为变化关键。`,
+    `- 以世爻为我、应爻为事/对方；动爻为变化关键；缺六亲看伏神。`,
     chart.changingPositions.length
-      ? `- 动爻在 ${chart.changingPositions.join('、')}，重点参看之卦 ${chart.zhiName}。`
+      ? `- 动爻在 ${chart.changingPositions.join('、')}，重点参看之卦 ${chart.zhiName} 与变爻纳甲。`
       : '- 六爻安静，以本卦静断为主。',
+    chart.fuShenList.length
+      ? `- 有伏神 ${chart.fuShenList.map((f) => f.liuqin).join('、')}，事机隐伏。`
+      : null,
     '',
     '## 解读边界',
-    '- 卦名、纳甲、六亲、世应为算法输出，润色不得改写。',
-  ].join('\n')
+    '- 卦名、纳甲、六亲、世应、伏神为算法输出，润色不得改写。',
+  ]
+    .filter((x) => x != null)
+    .join('\n')
 }
 
 export function collectLiuyaoAllowedTerms(chart: LiuyaoChart): Set<string> {
@@ -323,7 +392,9 @@ export function collectLiuyaoAllowedTerms(chart: LiuyaoChart): Set<string> {
     chart.upper,
     chart.lower,
     chart.palace,
+    chart.palaceWx,
     chart.dayGanZhi,
+    chart.monthGanZhi,
     chart.xunKong,
   ])
   chart.lines.forEach((l) => {
@@ -331,7 +402,17 @@ export function collectLiuyaoAllowedTerms(chart: LiuyaoChart): Set<string> {
     s.add(l.liuqin)
     s.add(l.animal)
     s.add(l.wx)
+    if (l.bianGanZhi) s.add(l.bianGanZhi)
+    if (l.bianLiuqin) s.add(l.bianLiuqin)
+    if (l.fuShen) {
+      s.add(l.fuShen.ganZhi)
+      s.add(l.fuShen.liuqin)
+    }
   })
-  ;['世', '应', '父母', '兄弟', '子孙', '妻财', '官鬼'].forEach((t) => s.add(t))
+  chart.fuShenList.forEach((f) => {
+    s.add(f.ganZhi)
+    s.add(f.liuqin)
+  })
+  ;['世', '应', '父母', '兄弟', '子孙', '妻财', '官鬼', '伏神'].forEach((t) => s.add(t))
   return s
 }

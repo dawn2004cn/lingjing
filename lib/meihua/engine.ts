@@ -132,6 +132,8 @@ export interface MeihuaChart {
   ben: { name: string; upper: number; lower: number }
   hu: { name: string; upper: number; lower: number }
   bian: { name: string; upper: number; lower: number }
+  cuo: { name: string; upper: number; lower: number }
+  zong: { name: string; upper: number; lower: number }
   /** 体卦：静卦侧；用卦：动爻所在侧 */
   ti: ReturnType<typeof baguaByN>
   yong: ReturnType<typeof baguaByN>
@@ -221,6 +223,10 @@ export function buildMeihuaChart(input: MeihuaInput): MeihuaChart {
   const ben = { name: hexName(upperN, lowerN), upper: upperN, lower: lowerN }
   const hu = huGua(upperN, lowerN)
   const bian = bianGua(upperN, lowerN, dongYao)
+  // 错卦：六爻全反；综卦：六爻颠倒
+  const benLines = toSixLines(upperN, lowerN)
+  const cuo = fromSixLines(benLines.map((x) => (x === 1 ? 0 : 1)))
+  const zong = fromSixLines([...benLines].reverse())
   // 体用：动爻在下卦（1-3）则下为用上为体，反之上为用下为体
   const ti = dongYao <= 3 ? upper : lower
   const yong = dongYao <= 3 ? lower : upper
@@ -235,6 +241,8 @@ export function buildMeihuaChart(input: MeihuaInput): MeihuaChart {
     ben,
     hu: { name: hu.name, upper: hu.upper, lower: hu.lower },
     bian: { name: bian.name, upper: bian.upper, lower: bian.lower },
+    cuo: { name: cuo.name, upper: cuo.upper, lower: cuo.lower },
+    zong: { name: zong.name, upper: zong.upper, lower: zong.lower },
     ti,
     yong,
     tiYong,
@@ -256,6 +264,7 @@ export function formatMeihuaForPrompt(chart: MeihuaChart): string {
     `- 动爻：第 ${chart.dongYao} 爻`,
     `- 互卦：${chart.hu.name}`,
     `- 变卦：${chart.bian.name}`,
+    `- 错卦：${chart.cuo.name} · 综卦：${chart.zong.name}`,
     `- 体卦：${chart.ti.name}（${chart.ti.wx}）· 用卦：${chart.yong.name}（${chart.yong.wx}）`,
     `- 体用关系：${chart.tiYong.relation} → ${chart.tiYong.verdict}`,
   ]
@@ -269,10 +278,10 @@ export function buildMeihuaRuleReading(chart: MeihuaChart): string {
     '',
     '## 规则断语',
     `- ${chart.tiYong.verdict}`,
-    '- 互卦看过程，变卦看结果；体为己、用为事。',
+    '- 互卦看过程，变卦看结果；错综参看对待与反复之象；体为己、用为事。',
     '',
     '## 解读边界',
-    '- 卦名、体用、动爻为算法输出，润色不得改写。',
+    '- 卦名、体用、动爻、错综为算法输出，润色不得改写。',
   ].join('\n')
 }
 
@@ -281,6 +290,8 @@ export function collectMeihuaAllowedTerms(chart: MeihuaChart): Set<string> {
     chart.ben.name,
     chart.hu.name,
     chart.bian.name,
+    chart.cuo.name,
+    chart.zong.name,
     chart.upper.name,
     chart.lower.name,
     chart.ti.name,

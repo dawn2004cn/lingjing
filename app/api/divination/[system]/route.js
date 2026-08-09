@@ -26,7 +26,7 @@ export async function POST(request, context) {
     const built = adapter.build(body)
 
     // 可选 Python sidecar：太乙/皇极/奇门/大六壬（未配置则跳过）
-    if (['taiyi', 'huangji', 'qimen', 'daliuren'].includes(system)) {
+    if (['taiyi', 'huangji', 'qimen', 'daliuren', 'jinkou'].includes(system)) {
       const enrich = await enrichWithPyEngine(system, built.chart || {}, body)
       if (enrich) {
         built.meta = { ...(built.meta || {}), pyEngine: enrich.sidecar, pyNote: enrich.note }

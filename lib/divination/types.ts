@@ -13,6 +13,7 @@ export type DivinationSystemId =
   | 'xiaoliuren'
   | 'qimen'
   | 'daliuren'
+  | 'jinkou'
   | 'taiyi'
   | 'huangji'
   | 'tieban'

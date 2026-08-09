@@ -42,6 +42,15 @@ class DateTimeReq(BaseModel):
     minute: int = 0
 
 
+class JinkouReq(BaseModel):
+    year: int
+    month: int = 1
+    day: int = 1
+    hour: int = 12
+    minute: int = 0
+    difen: Optional[str] = None
+
+
 @app.get("/health")
 def health() -> dict[str, Any]:
     flags = {
@@ -49,6 +58,7 @@ def health() -> dict[str, Any]:
         "kinwangji": False,
         "kinqimen": False,
         "kinliuren": False,
+        "kinjinkou": False,
     }
     for name in list(flags):
         try:
@@ -134,4 +144,25 @@ def daliuren(req: DateTimeReq) -> dict[str, Any]:
             "engine": "stub",
             "error": str(e),
             "hint": "未安装 kinliuren 时请使用 Node lingjing-daliuren",
+        }
+
+
+@app.post("/jinkou")
+def jinkou(req: JinkouReq) -> dict[str, Any]:
+    try:
+        import pendulum
+        from kinjinkou import JinkoujueApi
+
+        api = JinkoujueApi()
+        dt = pendulum.datetime(req.year, req.month, req.day, req.hour, req.minute, tz="Asia/Shanghai")
+        difen = req.difen or "子"
+        api.paipan(dt, difen=difen)
+        text = api.print_pan() if hasattr(api, "print_pan") else str(api)
+        return {"ok": True, "engine": "kinjinkou", "text": text if isinstance(text, str) else str(text)}
+    except Exception as e:
+        return {
+            "ok": False,
+            "engine": "stub",
+            "error": str(e),
+            "hint": "未安装 kinjinkou 时请使用 Node lingjing-jinkou",
         }

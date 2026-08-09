@@ -113,6 +113,18 @@ export const DIVINATION_CLASSICS: ClassicExcerpt[] = [
     terms: ['元', '会', '运', '世'],
   },
   {
+    system: 'jinkou',
+    slug: 'jinkou-siwei-excerpt',
+    title: '金口诀 · 四位总义（选）',
+    source: '《大六壬金口诀》通行义',
+    dynasty: '不详',
+    paragraphs: [
+      '金口诀者，六壬之简法。以地分为体，将神为用，贵神主人事，人元司天时。',
+      '月将加正时，视地分之位而得将神；贵人加临，取贵神；遁干寄宫，得人元。',
+    ],
+    terms: ['人元', '贵神', '将神', '地分', '月将'],
+  },
+  {
     system: 'tieban',
     slug: 'tieban-disclaimer',
     title: '铁板神数 · 结构说明（无条文）',

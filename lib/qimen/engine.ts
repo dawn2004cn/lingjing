@@ -62,6 +62,31 @@ function xunShou(dayGanZhi: string): string {
   return `甲${xunZhi}`
 }
 
+function xunKongFromDay(dayGanZhi: string): string {
+  const GAN = '甲乙丙丁戊己庚辛壬癸'
+  const ZHI = '子丑寅卯辰巳午未申酉戌亥'
+  const gi = GAN.indexOf(dayGanZhi[0])
+  const zi = ZHI.indexOf(dayGanZhi[1])
+  if (gi < 0 || zi < 0) return '—'
+  const xunStart = ((zi - gi) % 12 + 12) % 12
+  return `${ZHI[(xunStart + 10) % 12]}${ZHI[(xunStart + 11) % 12]}`
+}
+
+/** 驿马：申子辰马在寅，寅午戌马在申，巳酉丑马在亥，亥卯未马在巳 */
+function yiMaFromZhi(zhi: string): string {
+  if ('申子辰'.includes(zhi)) return '寅'
+  if ('寅午戌'.includes(zhi)) return '申'
+  if ('巳酉丑'.includes(zhi)) return '亥'
+  return '巳'
+}
+
+/** 符头定三元：甲子/甲午旬上元，甲寅/甲申中元，甲辰/甲戌下元 */
+function yuanFromXunShou(xs: string): { idx: number; name: string } {
+  if (xs === '甲子' || xs === '甲午') return { idx: 0, name: '上元' }
+  if (xs === '甲寅' || xs === '甲申') return { idx: 1, name: '中元' }
+  return { idx: 2, name: '下元' }
+}
+
 export interface QimenInput {
   date?: string
   clock?: string
@@ -90,6 +115,8 @@ export interface QimenChart {
   ju: number
   yuan: string
   xunShou: string
+  xunKong: string
+  yiMa: string
   zhiFuGong: number
   zhiShiGong: number
   zhiFuStar: string
@@ -123,13 +150,16 @@ export function buildQimenChart(input: QimenInput): QimenChart {
   const jqName = jq?.getName?.() || '冬至'
   const base = JIEQI_JU[jqName] || { yang: true, ju: 1 }
   const yangDun = input.yangDun != null ? !!input.yangDun : base.yang
-  // 三元：日干支旬简化为上中下元偏移
+  // 三元：按日旬符头
   const dayGz = lunar.getDayInGanZhi()
-  const yuanIdx = (dayGz.charCodeAt(0) + dayGz.charCodeAt(1)) % 3
-  let ju = input.ju != null ? Number(input.ju) : ((base.ju - 1 + yuanIdx) % 9) + 1
+  const xs = xunShou(dayGz)
+  const yuanInfo = yuanFromXunShou(xs)
+  let ju = input.ju != null ? Number(input.ju) : ((base.ju - 1 + yuanInfo.idx) % 9) + 1
   if (ju < 1 || ju > 9) ju = 1
 
-  const xs = xunShou(dayGz)
+  const kong = xunKongFromDay(dayGz)
+  const yiMa = yiMaFromZhi(dayGz[1])
+
   // 值符落宫：阳遁从坎起局
   const zhiFuGong = yangDun ? ju : 10 - ju
   const diStart = yangDun ? ju - 1 : 9 - ju
@@ -149,8 +179,7 @@ export function buildQimenChart(input: QimenInput): QimenChart {
     }
   }
 
-  const yuanNames = ['上元', '中元', '下元'] as const
-  const yuan = yuanNames[yuanIdx]
+  const yuan = yuanInfo.name
 
   const palaces: QimenPalace[] = []
   for (let g = 1; g <= 9; g++) {
@@ -190,12 +219,14 @@ export function buildQimenChart(input: QimenInput): QimenChart {
     ju,
     yuan,
     xunShou: xs,
+    xunKong: kong,
+    yiMa,
     zhiFuGong,
     zhiShiGong,
     zhiFuStar: zfPalace?.star || '—',
     zhiShiDoor: zsPalace?.door || '—',
     palaces,
-    engine: 'lingjing-qimen-chaibu@2',
+    engine: 'lingjing-qimen-chaibu@3',
   }
 }
 
@@ -210,7 +241,8 @@ export function formatQimenForPrompt(chart: QimenChart): string {
     `- 引擎：${chart.engine} · ${chart.method}`,
     `- 四柱：${chart.pillars}`,
     `- 节气：${chart.jieQi} · ${chart.yangDun ? '阳遁' : '阴遁'}${chart.ju}局 · ${chart.yuan}`,
-    `- 旬首：${chart.xunShou} · 值符宫：${chart.zhiFuGong}（${chart.zhiFuStar}）· 值使宫：${chart.zhiShiGong}（${chart.zhiShiDoor}）`,
+    `- 旬首：${chart.xunShou} · 空亡：${chart.xunKong} · 驿马：${chart.yiMa}`,
+    `- 值符宫：${chart.zhiFuGong}（${chart.zhiFuStar}）· 值使宫：${chart.zhiShiGong}（${chart.zhiShiDoor}）`,
     chart.witness
       ? `- 旁证：${chart.witness.engine} · ${chart.witness.summary}`
       : null,

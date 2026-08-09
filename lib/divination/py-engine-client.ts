@@ -64,7 +64,7 @@ export async function enrichWithPyEngine(
   chart: Record<string, unknown>,
   input?: Record<string, unknown>,
 ): Promise<{ sidecar: unknown; note: string } | null> {
-  const supported = ['taiyi', 'huangji', 'qimen', 'daliuren']
+  const supported = ['taiyi', 'huangji', 'qimen', 'daliuren', 'jinkou']
   if (!supported.includes(system)) return null
 
   const { year, month, day, hour } = resolveYmdh(chart, input)
@@ -113,6 +113,24 @@ export async function enrichWithPyEngine(
       note: data.ok
         ? '已并入 py-engine/kinqimen 旁证'
         : 'py-engine 未装 kinqimen；Node 侧 MIT 旁证仍可用',
+    }
+  }
+
+  if (system === 'jinkou') {
+    const data = await fetchPyEngine('/jinkou', {
+      year,
+      month,
+      day,
+      hour,
+      minute: 0,
+      difen: typeof chart.difen === 'string' ? chart.difen : undefined,
+    })
+    if (!data) return null
+    return {
+      sidecar: data,
+      note: data.ok
+        ? '已并入 py-engine/kinjinkou 旁证'
+        : 'py-engine 未装 kinjinkou，仍以 JS 自研为准',
     }
   }
 

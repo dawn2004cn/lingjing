@@ -7,7 +7,23 @@ import { Solar } from 'lunar-javascript'
 const ZHI = '子丑寅卯辰巳午未申酉戌亥'
 const GAN = '甲乙丙丁戊己庚辛壬癸'
 
-/** 月将：节气月 → 月将地支索引 0–11（简化：寅月亥将） */
+/** 月将：按节气（中气）定将 */
+const JIEQI_YUE_JIANG: Record<string, string> = {
+  雨水: '亥', 惊蛰: '亥',
+  春分: '戌', 清明: '戌',
+  谷雨: '酉', 立夏: '酉',
+  小满: '申', 芒种: '申',
+  夏至: '未', 小暑: '未',
+  大暑: '午', 立秋: '午',
+  处暑: '巳', 白露: '巳',
+  秋分: '辰', 寒露: '辰',
+  霜降: '卯', 立冬: '卯',
+  小雪: '寅', 大雪: '寅',
+  冬至: '丑', 小寒: '丑',
+  大寒: '子', 立春: '子',
+}
+
+/** 月将：节气月兜底（寅月亥将） */
 const YUE_JIANG = ['亥', '子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌']
 
 const TIAN_JIANG = [
@@ -57,21 +73,54 @@ export interface KeItem {
 export interface DaliurenChart {
   question?: string
   pillars: string
+  jieQi: string
   yueJiang: string
   shiZhi: string
   guiRen: string
   dayNight: string
+  xunKong: string
   tianPan: string[]
+  diPan: string[]
+  tianJiangPan: string[]
   ke: KeItem[]
   sanChuan: { chu: string; zhong: string; mo: string; method: string }
   tianJiangOnChuan: string[]
   engine: string
 }
 
-function resolveYueJiang(lunarMonth: number): string {
-  // 正月建寅 → 月将亥
+function resolveYueJiang(lunarMonth: number, jieQiName?: string): string {
+  if (jieQiName && JIEQI_YUE_JIANG[jieQiName]) return JIEQI_YUE_JIANG[jieQiName]
   const idx = (Math.abs(lunarMonth) - 1 + 12) % 12
   return YUE_JIANG[idx]
+}
+
+function xunKong(dayGanZhi: string): string {
+  const gi = GAN.indexOf(dayGanZhi[0])
+  const zi = ZHI.indexOf(dayGanZhi[1])
+  if (gi < 0 || zi < 0) return '—'
+  const xunStart = ((zi - gi) % 12 + 12) % 12
+  return `${ZHI[(xunStart + 10) % 12]}${ZHI[(xunStart + 11) % 12]}`
+}
+
+/** 涉害深度：从上神落宫沿地盘逆/顺数至本家（五行同位）的步数 */
+function sheHaiDepth(upper: string, lower: string): number {
+  const start = zhiIndex(lower)
+  const targetWx = WX_ZHI[upper]
+  let best = 12
+  for (let step = 0; step < 12; step++) {
+    const z = ZHI[(start + step) % 12]
+    if (WX_ZHI[z] === targetWx || z === upper) {
+      best = Math.min(best, step + 1)
+      break
+    }
+  }
+  return best === 12 ? 1 : best
+}
+
+function mengZhongJi(z: string): '孟' | '仲' | '季' {
+  if ('寅申巳亥'.includes(z)) return '孟'
+  if ('子午卯酉'.includes(z)) return '仲'
+  return '季'
 }
 
 function guiRenZhi(dayGan: string, night: boolean): string {
@@ -112,8 +161,8 @@ function shangShen(tianPan: string[], diZhi: string): string {
 export function takeSanChuan(
   ke: KeItem[],
   tianPan?: string[],
+  dayGan?: string,
 ): { chu: string; zhong: string; mo: string; method: string } {
-  // 贼克：下克上为贼，上克下为克
   const zei: KeItem[] = []
   const keShang: KeItem[] = []
   for (const k of ke) {
@@ -121,11 +170,26 @@ export function takeSanChuan(
     if (isKe(k.upper, k.lower)) keShang.push(k)
   }
 
-  // 伏吟：四课上下皆同
   const allFu = ke.every((k) => k.upper === k.lower)
-  // 返吟：天盘相对地盘对冲（相邻课上神与下神相冲）
   const chong = (a: string, b: string) => (zhiIndex(a) + 6) % 12 === zhiIndex(b)
   const allFan = ke.every((k) => chong(k.upper, k.lower))
+
+  const pickBySheHai = (cands: KeItem[], label: string) => {
+    let best = cands[0]
+    let bestDepth = -1
+    for (const c of cands) {
+      const d = sheHaiDepth(c.upper, c.lower)
+      if (d > bestDepth) {
+        bestDepth = d
+        best = c
+      } else if (d === bestDepth) {
+        // 同深度：孟 > 仲 > 季；再比日干阴阳
+        const rank = { 孟: 3, 仲: 2, 季: 1 }
+        if (rank[mengZhongJi(c.lower)] > rank[mengZhongJi(best.lower)]) best = c
+      }
+    }
+    return { chu: best.upper, method: `${label}（涉害${bestDepth}重）` }
+  }
 
   let chu: string
   let method: string
@@ -140,16 +204,28 @@ export function takeSanChuan(
     chu = zei[0].upper
     method = '贼克'
   } else if (zei.length > 1) {
-    chu = zei[0].upper
-    method = '比用（多贼取初）'
+    // 比用：与日干比和者优先，否则涉害
+    const yangGan = '甲丙戊庚壬'.includes(dayGan || '')
+    const bi = zei.filter((c) => {
+      const yangZhi = '子寅辰午申戌'.includes(c.upper)
+      return yangGan === yangZhi
+    })
+    if (bi.length === 1) {
+      chu = bi[0].upper
+      method = '比用'
+    } else {
+      const picked = pickBySheHai(bi.length ? bi : zei, '比用→涉害')
+      chu = picked.chu
+      method = picked.method
+    }
   } else if (keShang.length === 1) {
     chu = keShang[0].upper
     method = '克贼'
   } else if (keShang.length > 1) {
-    chu = keShang[0].upper
-    method = '涉害（多克取初）'
+    const picked = pickBySheHai(keShang, '涉害')
+    chu = picked.chu
+    method = picked.method
   } else {
-    // 遥克：日上神（一课上）与支上神（三课上）相克
     const yao =
       (isKe(ke[0].upper, ke[2].upper) && ke[0]) ||
       (isKe(ke[2].upper, ke[0].upper) && ke[2]) ||
@@ -166,7 +242,6 @@ export function takeSanChuan(
     }
   }
 
-  // 中末：天盘递取——初传地盘位上神为中，中传位上神为末
   let zhong: string
   let mo: string
   if (tianPan && tianPan.length === 12) {
@@ -194,7 +269,9 @@ export function buildDaliurenChart(input: DaliurenInput): DaliurenChart {
     timeGz,
   ].join(' ')
 
-  const yueJiang = resolveYueJiang(lunar.getMonth())
+  const jq = lunar.getPrevJieQi(true)
+  const jieQi = jq?.getName?.() || ''
+  const yueJiang = resolveYueJiang(lunar.getMonth(), jieQi)
   const shiZhi = timeGz[1]
   const night =
     input.dayNight === 'night'
@@ -204,6 +281,8 @@ export function buildDaliurenChart(input: DaliurenInput): DaliurenChart {
         : (hh || 12) < 6 || (hh || 12) >= 18
   const guiRen = guiRenZhi(dayGz[0], night)
   const tianPan = buildTianPan(yueJiang, shiZhi)
+  const diPan = [...ZHI]
+  const kong = xunKong(dayGz)
 
   const dayZhi = JI_GONG[dayGz[0]] || dayGz[1]
   const ganYang = shangShen(tianPan, dayZhi)
@@ -218,38 +297,49 @@ export function buildDaliurenChart(input: DaliurenInput): DaliurenChart {
     { label: '四课（支阴）', upper: zhiYin, lower: zhiYang },
   ]
 
-  const sanChuan = takeSanChuan(ke, tianPan)
-  // 天将：贵人加于贵人位；昼顺夜逆
+  const sanChuan = takeSanChuan(ke, tianPan, dayGz[0])
   const grIdx = zhiIndex(guiRen)
-  const tianJiangOnChuan = [sanChuan.chu, sanChuan.zhong, sanChuan.mo].map((z) => {
+  const tianJiangPan = diPan.map((z) => {
     const d = night
       ? (grIdx - zhiIndex(z) + 12) % 12
       : (zhiIndex(z) - grIdx + 12) % 12
     return TIAN_JIANG[d]
   })
+  const tianJiangOnChuan = [sanChuan.chu, sanChuan.zhong, sanChuan.mo].map(
+    (z) => tianJiangPan[zhiIndex(z)],
+  )
 
   return {
     question: typeof input.question === 'string' ? input.question : undefined,
     pillars,
+    jieQi,
     yueJiang,
     shiZhi,
     guiRen,
     dayNight: night ? '夜贵' : '昼贵',
+    xunKong: kong,
     tianPan: [...tianPan],
+    diPan,
+    tianJiangPan,
     ke,
     sanChuan,
     tianJiangOnChuan,
-    engine: 'lingjing-daliuren@1',
+    engine: 'lingjing-daliuren@2',
   }
 }
 
 export function formatDaliurenForPrompt(chart: DaliurenChart): string {
+  const jiangRow = chart.diPan
+    .map((d, i) => `${d}:${chart.tianPan[i]}/${chart.tianJiangPan[i]}`)
+    .join(' ')
   return [
     '## 大六壬课式（算法事实）',
     chart.question ? `- 问事：${chart.question}` : null,
     `- 引擎：${chart.engine}`,
     `- 四柱：${chart.pillars}`,
-    `- 月将：${chart.yueJiang} · 时支：${chart.shiZhi} · ${chart.dayNight}贵人：${chart.guiRen}`,
+    `- 节气：${chart.jieQi || '—'} · 月将：${chart.yueJiang} · 时支：${chart.shiZhi}`,
+    `- ${chart.dayNight}贵人：${chart.guiRen} · 旬空：${chart.xunKong}`,
+    `- 天地将盘：${jiangRow}`,
     ...chart.ke.map((k) => `- ${k.label}：上${k.upper} 下${k.lower}`),
     `- 三传：初${chart.sanChuan.chu} 中${chart.sanChuan.zhong} 末${chart.sanChuan.mo}（${chart.sanChuan.method}）`,
     `- 三传天将：${chart.tianJiangOnChuan.join('、')}`,
@@ -264,10 +354,10 @@ export function buildDaliurenRuleReading(chart: DaliurenChart): string {
     '',
     '## 规则断语',
     `- 取法：${chart.sanChuan.method}；初传为事之发端，末传看归宿。`,
-    `- 贵人${chart.guiRen}临${chart.dayNight}。`,
+    `- 贵人${chart.guiRen}临${chart.dayNight}；空亡看 ${chart.xunKong}。`,
     '',
     '## 解读边界',
-    '- 四课三传、月将贵人为算法输出；涉害深度与别责细则仍可能简化，重大事项请人工复核。',
+    '- 四课三传、月将贵人、天将盘为算法输出；别责八专边缘课体仍可能简化，重大事项请人工复核。',
   ].join('\n')
 }
 
@@ -276,11 +366,14 @@ export function collectDaliurenAllowedTerms(chart: DaliurenChart): Set<string> {
     chart.yueJiang,
     chart.shiZhi,
     chart.guiRen,
+    chart.jieQi,
+    chart.xunKong,
     chart.sanChuan.chu,
     chart.sanChuan.zhong,
     chart.sanChuan.mo,
     chart.sanChuan.method,
     ...chart.tianJiangOnChuan,
+    ...chart.tianJiangPan,
     ...TIAN_JIANG,
   ])
   chart.ke.forEach((k) => {

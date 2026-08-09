@@ -716,9 +716,10 @@ console.log('\n=== 19. Meeus 真太阳时 + 紫微完整性 ===')
 console.log('\n=== 20. 占卜集大成适配器冒烟 ===')
 {
   const systems = listSystems()
-  assert('系统登记 ≥ 10', systems.length >= 10, `got ${systems.length}`)
+  assert('系统登记 ≥ 11', systems.length >= 11, `got ${systems.length}`)
   assert('bazi 有效', isValidSystemId('bazi'))
   assert('meihua 有效', isValidSystemId('meihua'))
+  assert('jinkou 有效', isValidSystemId('jinkou'))
 
   const meihua = getAdapter('meihua')!.build({
     method: 'number',
@@ -734,6 +735,7 @@ console.log('\n=== 20. 占卜集大成适配器冒烟 ===')
   assert('乾初爻变履', (m2.chart as any).bian?.name === '天泽履', (m2.chart as any).bian?.name)
   const m3 = getAdapter('meihua')!.build({ method: 'number', num1: 1, num2: 1, num3: 3 })
   assert('乾三爻变姤', (m3.chart as any).bian?.name === '天风姤', (m3.chart as any).bian?.name)
+  assert('乾错卦为坤', (m2.chart as any).cuo?.name === '坤为地', (m2.chart as any).cuo?.name)
 
   for (const id of [
     'bazi',
@@ -743,6 +745,7 @@ console.log('\n=== 20. 占卜集大成适配器冒烟 ===')
     'xiaoliuren',
     'qimen',
     'daliuren',
+    'jinkou',
     'taiyi',
     'huangji',
     'tieban',
@@ -772,10 +775,19 @@ console.log('\n=== 20. 占卜集大成适配器冒烟 ===')
   })
   assert('六爻有本卦名', !!(ly.chart as any).benName)
   assert('六爻六爻齐全', (ly.chart as any).lines?.length === 6)
+  assert('六爻有宫五行', !!(ly.chart as any).palaceWx)
+  assert('六爻规则含伏神栏', ly.ruleReading.includes('伏神'))
+
+  const jk = getAdapter('jinkou')!.build({ date: '2024-06-15', clock: '12:00', difen: '午' })
+  assert('金口有人元', !!(jk.chart as any).renYuan?.gan)
+  assert('金口有将神', !!(jk.chart as any).jiangShen?.zhi)
+  assert('金口规则有四位', jk.ruleReading.includes('将神'))
 
   const qm = getAdapter('qimen')!.build({ date: '2024-06-15', clock: '12:00' })
   assert('奇门九宫', (qm.chart as any).palaces?.length === 9)
   assert('奇门值使宫', typeof (qm.chart as any).zhiShiGong === 'number')
+  assert('奇门空亡', !!(qm.chart as any).xunKong)
+  assert('奇门驿马', !!(qm.chart as any).yiMa)
   assert('奇门旁证字段', !!(qm.chart as any).witness?.engine)
   assert('奇门规则含值使', qm.ruleReading.includes('值使'))
   assert(
@@ -787,6 +799,8 @@ console.log('\n=== 20. 占卜集大成适配器冒烟 ===')
   const dlr = getAdapter('daliuren')!.build({ date: '2024-06-15', clock: '12:00', dayNight: 'day' })
   assert('大六壬四课', (dlr.chart as any).ke?.length === 4)
   assert('大六壬三传', !!(dlr.chart as any).sanChuan?.chu)
+  assert('大六壬天将盘', (dlr.chart as any).tianJiangPan?.length === 12)
+  assert('大六壬旬空', !!(dlr.chart as any).xunKong)
 
   const ty = getAdapter('taiyi')!.build({ date: '2024-06-15', jiStyle: 0 })
   assert('太乙积年', typeof (ty.chart as any).jiNian === 'number')
@@ -866,7 +880,7 @@ console.log('\n=== 21. 大六壬九宗门简判 + 原典/笔画 ===')
   const meihuaStroke = getAdapter('meihua')!.build({ method: 'stroke', text: '求财' })
   assert('汉字起卦有本卦', !!(meihuaStroke.chart as any).ben?.name)
 
-  for (const sys of ['bazi', 'meihua', 'liuyao', 'xiaoliuren', 'qimen', 'daliuren', 'taiyi', 'huangji', 'tieban']) {
+  for (const sys of ['bazi', 'meihua', 'liuyao', 'xiaoliuren', 'qimen', 'daliuren', 'jinkou', 'taiyi', 'huangji', 'tieban']) {
     const classics = listClassicsBySystem(sys)
     assert(`${sys} 有原典选章`, classics.length >= 1)
   }

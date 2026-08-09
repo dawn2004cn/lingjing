@@ -10,6 +10,7 @@ import { liuyaoAdapter } from './adapters/liuyao'
 import { xiaoliurenAdapter } from './adapters/xiaoliuren'
 import { qimenAdapter } from './adapters/qimen'
 import { daliurenAdapter } from './adapters/daliuren'
+import { jinkouAdapter } from './adapters/jinkou'
 import { taiyiAdapter } from './adapters/taiyi'
 import { huangjiAdapter } from './adapters/huangji'
 import { tiebanAdapter } from './adapters/tieban'
@@ -22,6 +23,7 @@ const ADAPTERS: DivinationAdapter[] = [
   xiaoliurenAdapter,
   qimenAdapter,
   daliurenAdapter,
+  jinkouAdapter,
   taiyiAdapter,
   huangjiAdapter,
   tiebanAdapter,
