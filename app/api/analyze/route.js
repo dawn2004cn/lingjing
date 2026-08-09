@@ -6,6 +6,7 @@ import {
 import { buildZiweiRuleReading, collectZiweiAllowedTerms } from '@/lib/ziwei/rule-reading'
 import { buildBaziChart, formatBaziForPrompt } from '@/lib/bazi/engine'
 import { buildBaziRuleReading, collectBaziAllowedTerms } from '@/lib/bazi/rule-reading'
+import { detectZipingPatterns, formatZipingForPrompt } from '@/lib/bazi/ziping'
 import { citationRiskScore } from '@/lib/astro/citation-guard'
 import { normalizeMarkdown } from '@/lib/markdown/normalize'
 import { buildDualBoundary, formatDualForPrompt } from '@/lib/astro/dual-boundary'
@@ -188,13 +189,18 @@ export async function POST(request) {
       baziChart = buildBaziChart(birth)
       chartText = formatBaziForPrompt(baziChart)
       ruleReading = buildBaziRuleReading(baziChart)
+      const ziping = detectZipingPatterns(baziChart)
+      const zipText = formatZipingForPrompt(ziping)
+      ruleReading += `\n\n${zipText}`
+      chartText += `\n\n${zipText}`
       if (dual?.applicable) {
         const dualText = formatDualForPrompt(dual)
         ruleReading += `\n\n${dualText}`
         chartText += `\n\n${dualText}`
       }
       allowed = collectBaziAllowedTerms(baziChart)
-      chartPayload = baziChartMeta(baziChart)
+      ziping.forEach((p) => allowed.add(p.name))
+      chartPayload = { ...baziChartMeta(baziChart), zipingPatterns: ziping.map((p) => p.name) }
       crossCheck = crossCheckBaziChart(baziChart)
       ruleReading += `\n\n${formatCrossCheckForPrompt(crossCheck)}`
       chartText += `\n\n${formatCrossCheckForPrompt(crossCheck)}`

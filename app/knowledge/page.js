@@ -27,6 +27,8 @@ export default function KnowledgeHomePage() {
           </p>
           <div className="mt-4 flex flex-wrap gap-3 text-xs">
             <Link href="/library" className="btn-ghost !text-xs">古籍原典</Link>
+            <Link href="/encyclopedia" className="btn-ghost !text-xs">术数百科</Link>
+            <Link href="/divination" className="btn-ghost !text-xs">占卜集大成</Link>
             <Link href="/heming" className="btn-ghost !text-xs">合盘分析</Link>
           </div>
         </div>

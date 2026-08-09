@@ -63,11 +63,34 @@ export function getCitationStats() {
     ORDER BY created_at DESC
     LIMIT 15
   `).all()
+  const bySystem = db
+    .prepare(
+      `
+    SELECT
+      COALESCE(system, 'unknown') as system,
+      COUNT(*) as total,
+      SUM(CASE WHEN fallback = 1 THEN 1 ELSE 0 END) as fallbacks,
+      AVG(score) as avgScore
+    FROM accuracy_events
+    WHERE kind = 'citation'
+    GROUP BY COALESCE(system, 'unknown')
+    ORDER BY total DESC
+  `,
+    )
+    .all()
+    .map((row: { system: string; total: number; fallbacks: number; avgScore: number | null }) => ({
+      system: row.system,
+      total: row.total,
+      fallbacks: row.fallbacks,
+      fallbackPct: row.total ? Math.round((row.fallbacks / row.total) * 1000) / 10 : 0,
+      avgScore: row.avgScore != null ? Math.round(Number(row.avgScore) * 10) / 10 : 0,
+    }))
   return {
     total,
     fallbacks,
     fallbackPct: total ? Math.round((fallbacks / total) * 1000) / 10 : 0,
     avgScore: avg != null ? Math.round(Number(avg) * 10) / 10 : 0,
     recentFallbacks: recent,
+    bySystem,
   }
 }

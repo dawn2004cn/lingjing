@@ -6,6 +6,7 @@ import { useAuth } from './AuthContext'
 
 const NAV_LINKS = [
   { href: '/', label: '排盘' },
+  { href: '/divination', label: '占卜' },
   { href: '/heming', label: '合盘' },
   { href: '/yunshi', label: '运势' },
   { href: '/history', label: '历史' },

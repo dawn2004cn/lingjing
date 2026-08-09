@@ -1,0 +1,33 @@
+import type { DivinationAdapter, DivinationBuildInput, DivinationBuildResult } from '../types'
+import {
+  auditDaliurenIntegrity,
+  buildDaliurenChart,
+  buildDaliurenRuleReading,
+  collectDaliurenAllowedTerms,
+  formatDaliurenForPrompt,
+  type DaliurenInput,
+} from '@/lib/daliuren/engine'
+
+export const daliurenAdapter: DivinationAdapter = {
+  meta: {
+    id: 'daliuren',
+    name: '大六壬',
+    category: 'zhanbu',
+    blurb: '月将加时 · 四课三传 · 十二天将',
+    engine: 'lingjing-daliuren（自研九宗门简化）',
+    defaultMethod: '昼贵/夜贵可切换',
+    href: '/daliuren',
+    available: true,
+  },
+  build(input: DivinationBuildInput): DivinationBuildResult {
+    const chart = buildDaliurenChart(input as DaliurenInput)
+    return {
+      system: 'daliuren',
+      chart,
+      ruleReading: buildDaliurenRuleReading(chart),
+      promptText: formatDaliurenForPrompt(chart),
+      allowedTerms: [...collectDaliurenAllowedTerms(chart)],
+      integrity: auditDaliurenIntegrity(chart),
+    }
+  },
+}

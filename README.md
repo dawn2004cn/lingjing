@@ -8,15 +8,17 @@
 
 ## 功能概览
 
-| 模块 | 说明 |
+| 功能 | 说明 |
 |------|------|
-| 八字排盘 | 四柱、喜用、大运；日柱流派可切换；跨引擎旁证 |
+| 八字排盘 | 四柱、喜用、大运、**子平格局简判**；日柱流派可切换；跨引擎旁证 |
 | 紫微排盘 | 十二宫命盘、格局、叠宫；主星完整性校验 |
+| 占卜集大成 | `/divination`：梅花（含笔画起卦）、六爻、小六壬、奇门、大六壬 |
+| 研究级 | 太乙、皇极、铁板（结构演示）；`PY_ENGINE_URL` 时 API 并入 sidecar 旁证 |
 | 合盘 | `/heming` 互飞矩阵 + 双盘旁证 |
 | 运势 | `/yunshi` 年度报告与人生 K 线 |
 | 历史 | `/history` 再读（带回日柱流派等精度选项） |
-| 准确度 | `/accuracy` 口径说明；`/admin` 精度运维与 citation 观测 |
-| 知识库 | `/library` 古籍、`/knowledge` 百科 |
+| 准确度 | `/accuracy` 口径与已接入术数；`/admin` citation 按系统聚合 |
+| 知识库 | `/library` 古籍、`/knowledge` 紫微百科、`/encyclopedia` 术语+原典选章 |
 
 ---
 
@@ -124,14 +126,20 @@ lingjing/
 ├── .env.example
 ├── package.json
 ├── docs/
-│   └── ACCURACY.md            # 准确度工程约定
+│   ├── ACCURACY.md            # 准确度工程约定
+│   └── SYSTEMS.md             # 术数系统登记册
+├── services/py-engine/        # 太乙/皇极可选 Python sidecar
 ├── scripts/
 │   └── astro-regression.ts    # 黄金用例回归
 ├── lib/
 │   ├── db.js / auth.js
-│   ├── astro/                 # 真太阳、节气、交界、跨引擎、精度、citation、完整性
-│   ├── bazi/                  # 八字引擎与规则解读
-│   └── ziwei/                 # 紫微排盘、格局、合盘、运势
+│   ├── divination/            # 统一适配器 registry
+│   ├── astro/                 # 真太阳、节气、交界、跨引擎、精度、citation
+│   ├── bazi/                  # 八字 + 子平简判
+│   ├── ziwei/                 # 紫微
+│   ├── meihua/ liuyao/ xiaoliuren/ qimen/ daliuren/
+│   ├── taiyi/ huangji/ tieban/
+│   └── knowledge/             # 百科
 └── app/
     ├── page.js / HomeClient.js
     ├── accuracy / heming / yunshi / history / admin / ...
@@ -149,6 +157,7 @@ lingjing/
 
 | 路由 | 方法 | 认证 | 说明 |
 |------|------|------|------|
+| `/api/divination/:system` | GET/POST | 否 | 列出系统 / 统一排盘（可选 polish） |
 | `/api/analyze` | POST | 否* | 八字/紫微规则解读 + 可选润色；支持追问 `question` |
 | `/api/ziwei/chart` | POST | 否 | 紫微排盘；含交叉旁证与完整性 |
 | `/api/ziwei/yunshi` | POST | 否 | 年度运势报告 |

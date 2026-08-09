@@ -326,6 +326,23 @@ export default function AdminPage() {
                     </div>
                   ))}
                 </div>
+                {data.accuracy.citation?.bySystem?.length > 0 && (
+                  <div className="mt-4 border-t border-[var(--line)] pt-3">
+                    <div className="text-[10px] tracking-widest text-[rgba(245,234,210,0.4)] mb-2">
+                      citation 按术数
+                    </div>
+                    <ul className="space-y-1.5 text-[11px] text-[rgba(245,234,210,0.55)]">
+                      {data.accuracy.citation.bySystem.map((s) => (
+                        <li key={s.system} className="flex flex-wrap gap-3">
+                          <span className="text-[var(--gold-bright)] w-20">{s.system}</span>
+                          <span>采样 {s.total}</span>
+                          <span>回退 {s.fallbacks}（{s.fallbackPct}%）</span>
+                          <span>均分 {s.avgScore}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 {data.accuracy.citation?.recentFallbacks?.length > 0 && (
                   <div className="mt-4 border-t border-[var(--line)] pt-3">
                     <div className="text-[10px] tracking-widest text-[rgba(245,234,210,0.4)] mb-2">

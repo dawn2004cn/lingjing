@@ -6,6 +6,12 @@
 import { clockToTimeIndex, parseTimeIndexFromHourLabel } from '../lib/astro/time-index'
 import { correctTrueSolarTime } from '../lib/astro/true-solar'
 import { auditZiweiChartIntegrity } from '../lib/astro/ziwei-integrity'
+import { getAdapter, listSystems, isValidSystemId } from '../lib/divination/registry'
+import { detectZipingPatterns } from '../lib/bazi/ziping'
+import { takeSanChuan } from '../lib/daliuren/engine'
+import { listClassicsBySystem } from '../lib/knowledge/divination-classics'
+import { countStrokes } from '../lib/meihua/engine'
+import { fetchPyEngine } from '../lib/divination/py-engine-client'
 import { findCityLongitude } from '../lib/ziwei/cities'
 import { buildBaziChart } from '../lib/bazi/engine'
 import { buildBaziRuleReading } from '../lib/bazi/rule-reading'
@@ -707,5 +713,130 @@ console.log('\n=== 19. Meeus 真太阳时 + 紫微完整性 ===')
   assert('命宫自洽', integ.mingConsistent === true)
 }
 
-console.log(`\n${failed === 0 ? '全部通过' : `${failed} 项失败`}\n`)
-process.exit(failed === 0 ? 0 : 1)
+console.log('\n=== 20. 占卜集大成适配器冒烟 ===')
+{
+  const systems = listSystems()
+  assert('系统登记 ≥ 10', systems.length >= 10, `got ${systems.length}`)
+  assert('bazi 有效', isValidSystemId('bazi'))
+  assert('meihua 有效', isValidSystemId('meihua'))
+
+  const meihua = getAdapter('meihua')!.build({
+    method: 'number',
+    num1: 3,
+    num2: 5,
+    num3: 2,
+    question: '测试',
+  })
+  assert('梅花有本卦', !!(meihua.chart as any).ben?.name)
+  assert('梅花规则文', meihua.ruleReading.includes('梅花'))
+
+  const xlr = getAdapter('xiaoliuren')!.build({ date: '2024-06-15', clock: '10:00' })
+  assert('小六壬有时宫', !!(xlr.chart as any).shiGong?.name)
+
+  const ly = getAdapter('liuyao')!.build({
+    method: 'manual',
+    yaoValues: [7, 8, 9, 7, 8, 6],
+    date: '2024-06-15',
+    clock: '12:00',
+  })
+  assert('六爻有本卦名', !!(ly.chart as any).benName)
+  assert('六爻六爻齐全', (ly.chart as any).lines?.length === 6)
+
+  const qm = getAdapter('qimen')!.build({ date: '2024-06-15', clock: '12:00' })
+  assert('奇门九宫', (qm.chart as any).palaces?.length === 9)
+  assert('奇门旁证 ok', qm.integrity?.status === 'ok')
+
+  const dlr = getAdapter('daliuren')!.build({ date: '2024-06-15', clock: '12:00', dayNight: 'day' })
+  assert('大六壬四课', (dlr.chart as any).ke?.length === 4)
+  assert('大六壬三传', !!(dlr.chart as any).sanChuan?.chu)
+
+  const ty = getAdapter('taiyi')!.build({ date: '2024-06-15', jiStyle: 0 })
+  assert('太乙积年', typeof (ty.chart as any).jiNian === 'number')
+
+  const hj = getAdapter('huangji')!.build({ year: 2024, month: 6, day: 15 })
+  assert('皇极有会', (hj.chart as any).hui >= 1)
+
+  const tb = getAdapter('tieban')!.build({
+    gender: '男',
+    birthDate: '1990-05-15',
+    birthHour: '午时',
+    calendarType: '公历',
+  })
+  assert('铁板无条文库', (tb.chart as any).versesAvailable === false)
+  assert('铁板有本命数', (tb.chart as any).benMingShu > 0)
+
+  const bazi = getAdapter('bazi')!.build({
+    gender: '男',
+    birthDate: '1990-05-15',
+    birthHour: '午时',
+    calendarType: '公历',
+  })
+  assert('八字子平格局', Array.isArray((bazi.chart as any).zipingPatterns))
+  const zp = detectZipingPatterns(bazi.chart as any)
+  assert('子平简判非空', zp.length >= 1)
+
+  const zw = getAdapter('ziwei')!.build({
+    gender: '男',
+    birthDate: '1990-05-15',
+    birthHour: '午时',
+    calendarType: '公历',
+  })
+  assert('紫微适配器完整性', zw.integrity?.status === 'ok' || zw.integrity?.status === 'warn')
+}
+
+console.log('\n=== 21. 大六壬九宗门简判 + 原典/笔画 ===')
+{
+  // 贼克：唯一下克上
+  const zei = takeSanChuan([
+    { label: '1', upper: '午', lower: '子' }, // 水克火？子水克午火 — 下克上
+    { label: '2', upper: '丑', lower: '丑' },
+    { label: '3', upper: '寅', lower: '寅' },
+    { label: '4', upper: '卯', lower: '卯' },
+  ])
+  assert('贼克取法', zei.method === '贼克', zei.method)
+
+  // 多贼 → 比用
+  const bi = takeSanChuan([
+    { label: '1', upper: '午', lower: '子' },
+    { label: '2', upper: '巳', lower: '亥' },
+    { label: '3', upper: '寅', lower: '寅' },
+    { label: '4', upper: '卯', lower: '卯' },
+  ])
+  assert('比用取法', bi.method.includes('比用'), bi.method)
+
+  // 无贼有上克下 → 克贼
+  const kezei = takeSanChuan([
+    { label: '1', upper: '子', lower: '午' }, // 上水克下火
+    { label: '2', upper: '丑', lower: '丑' },
+    { label: '3', upper: '寅', lower: '寅' },
+    { label: '4', upper: '卯', lower: '卯' },
+  ])
+  assert('克贼取法', kezei.method === '克贼', kezei.method)
+
+  // 无克 → 昴星简化
+  const mao = takeSanChuan([
+    { label: '1', upper: '子', lower: '子' },
+    { label: '2', upper: '丑', lower: '丑' },
+    { label: '3', upper: '寅', lower: '寅' },
+    { label: '4', upper: '卯', lower: '卯' },
+  ])
+  assert('昴星简化', mao.method.includes('昴星'), mao.method)
+
+  const stroke = countStrokes('求财')
+  assert('笔画可复现', stroke.total === countStrokes('求财').total && stroke.total > 0)
+
+  const meihuaStroke = getAdapter('meihua')!.build({ method: 'stroke', text: '求财' })
+  assert('汉字起卦有本卦', !!(meihuaStroke.chart as any).ben?.name)
+
+  for (const sys of ['bazi', 'meihua', 'liuyao', 'xiaoliuren', 'qimen', 'daliuren', 'taiyi', 'huangji', 'tieban']) {
+    const classics = listClassicsBySystem(sys)
+    assert(`${sys} 有原典选章`, classics.length >= 1)
+  }
+}
+
+void (async () => {
+  const py = await fetchPyEngine('/health')
+  assert('py-engine 旁路不抛错', py == null || typeof py === 'object')
+  console.log(`\n${failed === 0 ? '全部通过' : `${failed} 项失败`}\n`)
+  process.exit(failed === 0 ? 0 : 1)
+})()

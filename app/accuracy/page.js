@@ -1,3 +1,4 @@
+import { listSystems } from '@/lib/divination/registry'
 import Link from 'next/link'
 import NavBar from '../components/NavBar'
 import AccuracyCopyButton from '../components/AccuracyCopyButton'
@@ -45,11 +46,21 @@ const RULES = [
     ],
   },
   {
+    title: '多术数集大成',
+    items: [
+      '统一 DivinationAdapter：排盘 → 规则事实 → 可选润色',
+      '占卜频道：梅花 / 六爻 / 小六壬 / 奇门 / 大六壬',
+      '研究级：太乙 / 皇极 / 铁板（结构演示，铁板无未授权条文）',
+      '子平格局简判写入八字规则事实；登记见 docs/SYSTEMS.md',
+    ],
+  },
+  {
     title: '回归保障',
     items: [
       '黄金用例锁定四柱 / 命宫 / 早晚子',
       '跨引擎：tyme4ts；八字与紫微旁证共用日柱流派',
       '2020–2026 十二节自动抽检',
+      '占卜系统 §20 冒烟用例',
       '运行 npm run test:astro 可本地复现',
     ],
   },
@@ -61,6 +72,8 @@ export const metadata = {
 }
 
 export default function AccuracyPage() {
+  const systems = listSystems()
+
   return (
     <div className="page-shell">
       <NavBar />
@@ -76,6 +89,7 @@ export default function AccuracyPage() {
           </p>
           <div className="mt-6 flex flex-wrap gap-3 text-xs">
             <Link href="/" className="btn-primary !w-auto px-4 !text-xs">去排盘</Link>
+            <Link href="/divination" className="btn-ghost !text-xs border border-[var(--line)]">占卜集大成</Link>
             <Link href="/history" className="btn-ghost !text-xs border border-[var(--line)]">历史再读</Link>
             <AccuracyCopyButton />
           </div>
@@ -98,6 +112,28 @@ export default function AccuracyPage() {
         </section>
 
         <section className="mt-16 max-w-3xl">
+          <p className="text-xs tracking-[0.16em] text-[var(--gold-bright)]">SYSTEMS</p>
+          <h2 className="mt-2 text-2xl text-[#fff6e2]">已接入术数</h2>
+          <div className="mt-6 space-y-3">
+            {systems.map((s) => (
+              <div key={s.id} className="border border-[var(--line)] rounded-md px-3 py-2.5">
+                <div className="flex flex-wrap items-baseline gap-2">
+                  <Link href={s.href} className="text-sm text-[var(--gold-bright)]">
+                    {s.name}
+                  </Link>
+                  <span className="text-[10px] text-[rgba(245,234,210,0.35)]">{s.category}</span>
+                  {s.researchOnly && (
+                    <span className="text-[10px] text-[rgba(215,168,74,0.75)]">研究级</span>
+                  )}
+                </div>
+                <p className="mt-1 text-xs text-[rgba(245,234,210,0.5)]">{s.engine}</p>
+                <p className="mt-0.5 text-[10px] text-[rgba(245,234,210,0.35)]">默认：{s.defaultMethod}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-16 max-w-3xl">
           <p className="text-xs tracking-[0.16em] text-[var(--gold-bright)]">CONVENTIONS</p>
           <h2 className="mt-2 text-2xl text-[#fff6e2]">关键口径</h2>
           <div className="mt-6 space-y-8">
@@ -116,8 +152,8 @@ export default function AccuracyPage() {
 
         <section className="mt-16 max-w-3xl border-t border-[var(--line)] pt-8">
           <p className="text-sm text-[rgba(245,234,210,0.45)] leading-relaxed">
-            引擎：lunar-javascript · tyme4ts · iztro。
-            详细开发说明见仓库 README「准确度口径」一节。
+            引擎：lunar-javascript · tyme4ts · iztro · 自研占卜适配器。
+            详细开发说明见 README 与 docs/SYSTEMS.md。
           </p>
         </section>
       </main>
