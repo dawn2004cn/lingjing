@@ -49,9 +49,18 @@ const RULES = [
     title: '多术数集大成',
     items: [
       '统一 DivinationAdapter：排盘 → 规则事实 → 可选润色',
-      '占卜频道：梅花 / 六爻 / 小六壬 / 奇门 / 大六壬',
-      '研究级：太乙 / 皇极 / 铁板（结构演示，铁板无未授权条文）',
+      '占卜频道：梅花 / 六爻 / 小六壬 / 奇门 / 大六壬 / 金口诀',
+      '研究级：太乙 / 皇极 / 铁板（结构演示；铁板条文冻结，哈希非古典推数）',
+      '奇门/大六壬标 requiresHumanReview；CastPanel 展示 integrity/witness/pyEngine',
       '子平格局简判写入八字规则事实；登记见 docs/SYSTEMS.md',
+    ],
+  },
+  {
+    title: '产品级未做项（与术数深度解耦）',
+    items: [
+      '飞星派开关（紫微流派扩展）',
+      '完整多轮会话与付费档位',
+      'citation 语义级事实校验（当前为启发式词表）',
     ],
   },
   {
@@ -60,8 +69,8 @@ const RULES = [
       '黄金用例锁定四柱 / 命宫 / 早晚子',
       '跨引擎：tyme4ts；八字与紫微旁证共用日柱流派',
       '2020–2026 十二节自动抽检',
-      '占卜系统 §20 冒烟用例',
-      '运行 npm run test:astro 可本地复现',
+      '占卜 §20 冒烟 + 小六壬/铁板锁定用例',
+      'npm run test:astro；可选 npm run test:py-engine（需 PY_ENGINE_URL）',
     ],
   },
 ]

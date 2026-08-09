@@ -31,6 +31,7 @@ import {
   BOUNDARY_DUAL_CASES,
   JIEQI_GOLDEN,
 } from '../lib/astro/golden-cases'
+import { TIEBAN_GOLDEN, XIAOLIUREN_GOLDEN } from '../lib/astro/divination-golden'
 import {
   crossCheckBaziInput,
   crossCheckLunarToSolar,
@@ -856,6 +857,34 @@ console.log('\n=== 20. 占卜集大成适配器冒烟 ===')
   })
   assert('铁板无条文库', (tb.chart as any).versesAvailable === false)
   assert('铁板有本命数', (tb.chart as any).benMingShu > 0)
+  assert('铁板演示哈希标记', (tb.chart as any).numbersAreDemoHash === true)
+  assert('铁板规则含冻结', tb.ruleReading.includes('冻结') || tb.ruleReading.includes('演示哈希'))
+  assert('铁板完整性', tb.integrity?.status === 'ok', tb.integrity?.summary)
+
+  for (const g of XIAOLIUREN_GOLDEN) {
+    const built = getAdapter('xiaoliuren')!.build(g.input)
+    const ch = built.chart as any
+    assert(`${g.id} 月宫`, ch.yueGong?.name === g.expect.yueGong, ch.yueGong?.name)
+    assert(`${g.id} 日宫`, ch.riGong?.name === g.expect.riGong, ch.riGong?.name)
+    assert(`${g.id} 时宫`, ch.shiGong?.name === g.expect.shiGong, ch.shiGong?.name)
+    assert(`${g.id} 事项`, ch.matterKey === g.expect.matterKey, ch.matterKey)
+    assert(
+      `${g.id} 专断`,
+      String(ch.matterHint || '').includes(g.expect.hintIncludes),
+      ch.matterHint,
+    )
+  }
+
+  for (const g of TIEBAN_GOLDEN) {
+    const built = getAdapter('tieban')!.build(g.input)
+    const ch = built.chart as any
+    assert(`${g.id} 先天`, ch.xianTianMingShu === g.expect.xianTianMingShu, String(ch.xianTianMingShu))
+    assert(`${g.id} 本命`, ch.benMingShu === g.expect.benMingShu, String(ch.benMingShu))
+    assert(`${g.id} 考刻`, ch.kaoKe === g.expect.kaoKe, ch.kaoKe)
+    assert(`${g.id} 辟卦`, ch.piGua === g.expect.piGua, ch.piGua)
+    assert(`${g.id} 无条文`, ch.versesAvailable === g.expect.versesAvailable)
+    assert(`${g.id} 哈希标记`, ch.numbersAreDemoHash === g.expect.numbersAreDemoHash)
+  }
 
   const bazi = getAdapter('bazi')!.build({
     gender: '男',

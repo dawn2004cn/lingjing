@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "node --max-old-space-size=8192 ./node_modules/next/dist/bin/next build",
     "start": "next start",
-    "test:astro": "npx --yes tsx scripts/astro-regression.ts"
+    "test:astro": "npx --yes tsx scripts/astro-regression.ts",
+    "test:py-engine": "npx --yes tsx scripts/py-engine-health.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

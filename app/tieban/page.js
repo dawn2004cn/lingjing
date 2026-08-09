@@ -13,7 +13,7 @@ export default function TiebanPage() {
         <CastPanel
           system="tieban"
           title="铁版神数"
-          blurb="仅结构排盘（本命数/考刻/辟卦）。断语条文需自有或授权库，禁止编造条文。"
+          blurb="仅结构排盘演示。本命数/考刻为确定性哈希（非古典推数）；断语条文未授权，禁止编造条文或命运断定。"
           researchOnly
           fields={[
             { key: 'birthDate', label: '出生日期', type: 'date' },

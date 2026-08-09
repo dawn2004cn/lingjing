@@ -1,5 +1,6 @@
 import type { DivinationAdapter, DivinationBuildInput, DivinationBuildResult } from '../types'
 import {
+  auditTiebanIntegrity,
   buildTiebanChart,
   buildTiebanRuleReading,
   collectTiebanAllowedTerms,
@@ -12,9 +13,9 @@ export const tiebanAdapter: DivinationAdapter = {
     id: 'tieban',
     name: '铁版神数',
     category: 'research',
-    blurb: '结构排盘演示 · 条文库需授权',
+    blurb: '结构演示 · 条文冻结 · 哈希非古典推数',
     engine: 'lingjing-tieban-structure（无商业条文）',
-    defaultMethod: '四柱 → 本命数/考刻/辟卦',
+    defaultMethod: '四柱 → 演示本命数/考刻/辟卦',
     href: '/tieban',
     available: true,
     researchOnly: true,
@@ -27,6 +28,7 @@ export const tiebanAdapter: DivinationAdapter = {
       ruleReading: buildTiebanRuleReading(chart),
       promptText: formatTiebanForPrompt(chart),
       allowedTerms: [...collectTiebanAllowedTerms(chart)],
+      integrity: auditTiebanIntegrity(chart),
     }
   },
 }
