@@ -17,6 +17,8 @@ export default function ProfilePage() {
   const [redeeming, setRedeeming] = useState(false)
   const [checkout, setCheckout] = useState(null)
   const [pendingOrder, setPendingOrder] = useState(null)
+  const [payProvider, setPayProvider] = useState('mock')
+  const [prepayInfo, setPrepayInfo] = useState(null)
   const [buying, setBuying] = useState(false)
   const router = useRouter()
 
@@ -28,6 +30,8 @@ export default function ProfilePage() {
         setCheckout(d)
         const pend = (d.orders || []).find((o) => o.status === 'pending')
         if (pend) setPendingOrder(pend)
+        const avail = (d.providers || []).find((p) => p.available)
+        if (avail) setPayProvider(avail.id)
       })
       .catch(() => {})
   }, [user])
@@ -74,17 +78,39 @@ export default function ProfilePage() {
 
   const createOrder = async () => {
     setMsg(''); setErr('')
+    setPrepayInfo(null)
     setBuying(true)
     try {
       const res = await fetch('/api/plan/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'create' }),
+        body: JSON.stringify({ action: 'create', provider: payProvider }),
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error || '下单失败')
       setPendingOrder(d.order)
       setMsg(d.hint || '订单已创建')
+    } catch (e) { setErr(e.message) } finally { setBuying(false) }
+  }
+
+  const runPrepay = async () => {
+    if (!pendingOrder) return
+    setMsg(''); setErr('')
+    setBuying(true)
+    try {
+      const res = await fetch('/api/plan/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'prepay',
+          orderId: pendingOrder.id,
+          provider: payProvider,
+        }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error || '预下单失败')
+      setPrepayInfo(d.prepay)
+      setMsg(d.prepay?.message || '预下单成功')
     } catch (e) { setErr(e.message) } finally { setBuying(false) }
   }
 
@@ -102,6 +128,7 @@ export default function ProfilePage() {
       if (!res.ok) throw new Error(d.error || '支付失败')
       setMsg(d.message || '已开通专业档')
       setPendingOrder(null)
+      setPrepayInfo(null)
       if (typeof refetch === 'function') await refetch()
     } catch (e) { setErr(e.message) } finally { setBuying(false) }
   }
@@ -150,13 +177,33 @@ export default function ProfilePage() {
                   : ' · 演示支付已关，请用兑换码或正式通道回调'}
               </p>
               {Array.isArray(checkout?.providers) && checkout.providers.length > 0 && (
-                <ul className="text-[10px] text-[rgba(245,234,210,0.45)] space-y-0.5">
-                  {checkout.providers.map((p) => (
-                    <li key={p.id}>
-                      {p.label}：{p.available ? '可用' : '未就绪'} · {p.hint}
-                    </li>
-                  ))}
-                </ul>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] text-[rgba(245,234,210,0.45)]">支付通道</label>
+                  <select
+                    className="input-base !text-xs !py-1.5"
+                    value={payProvider}
+                    onChange={(e) => setPayProvider(e.target.value)}
+                    disabled={!!pendingOrder}
+                  >
+                    {checkout.providers.map((p) => (
+                      <option key={p.id} value={p.id} disabled={!p.available}>
+                        {p.label}{p.available ? '' : '（未就绪）'}
+                      </option>
+                    ))}
+                  </select>
+                  <ul className="text-[10px] text-[rgba(245,234,210,0.45)] space-y-0.5">
+                    {checkout.providers.map((p) => (
+                      <li key={`h-${p.id}`}>
+                        {p.label}：{p.available ? '可用' : '未就绪'} · {p.hint}
+                      </li>
+                    ))}
+                  </ul>
+                  {checkout.prepay?.dryRun !== false && (
+                    <p className="text-[10px] text-[rgba(245,234,210,0.4)]">
+                      正式通道默认 dry-run（本地签名不扣款）；联调设 PLAN_PAY_DRY_RUN=0
+                    </p>
+                  )}
+                </div>
               )}
               {!pendingOrder ? (
                 <button
@@ -171,8 +218,34 @@ export default function ProfilePage() {
                 <div className="space-y-2">
                   <p className="text-[11px] text-[rgba(245,234,210,0.65)] font-mono">
                     {pendingOrder.orderNo} · ¥{pendingOrder.amountYuan}
+                    {pendingOrder.provider ? ` · ${pendingOrder.provider}` : ''}
                   </p>
-                  {checkout?.mockPayAllowed !== false && (
+                  {payProvider !== 'mock' && (
+                    <button
+                      type="button"
+                      className="btn-ghost !text-xs border border-[var(--line)] w-full"
+                      disabled={buying}
+                      onClick={runPrepay}
+                    >
+                      {buying ? '预下单中...' : '微信/支付宝预下单'}
+                    </button>
+                  )}
+                  {prepayInfo?.codeUrl && (
+                    <p className="text-[10px] break-all text-[rgba(245,234,210,0.5)]">
+                      码链：{prepayInfo.codeUrl}
+                    </p>
+                  )}
+                  {prepayInfo?.payUrl && (
+                    <a
+                      href={prepayInfo.payUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] text-[var(--gold-bright)] break-all block"
+                    >
+                      打开支付宝付款页
+                    </a>
+                  )}
+                  {checkout?.mockPayAllowed !== false && payProvider === 'mock' && (
                     <button
                       type="button"
                       className="btn-primary"

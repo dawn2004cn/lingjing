@@ -65,11 +65,11 @@ npm run test:astro
 - 铁板条文匹配冻结；演示哈希不得解读为真实命数
 - 紫微主站 `ziweiSchool=ni|feixing`；飞星含本命/大限/流年/流月/**流日**多层飞化链、自化、来因宫
 - 首页追问支持多轮线程；排盘与规则事实不限，LLM 计日额度
-- 会员档：`free` / `pro`；兑换码 + 订单；**支付通道适配器**（mock / wechat / alipay + `/api/plan/pay/notify/[provider]`）；正式 SDK 需商户环境变量，未内置扣款
+- 会员档：`free` / `pro`；兑换码 + 订单；**微信 Native / 支付宝 page.pay 预下单**（RSA 签名 + 默认 dry-run；`PLAN_PAY_DRY_RUN=0` 可打真实网关）+ notify 入账
 - citation：**语义事实图** + 词表加权；合盘互飞落点并入事实索引
 - 合盘：关键宫对照 + 四化互飞 + 落宫再飞一跳 / 关键宫落点语义图
 - **解读会话**：`/api/sessions` 持久化主文与追问；历史页可「继续会话」；URL `?session=`
-- **产品级未做**：微信/支付宝商户 SDK 预下单实现（回调入账骨架已就绪）
+- **联调提示**：生产需配置商户密钥与 `PLAN_PAY_NOTIFY_SECRET`；微信回调建议再验平台证书签名
 
 ## 旁证健康检查
 

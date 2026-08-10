@@ -8,8 +8,10 @@ import {
   listPayProviders,
   mockPayAllowed,
   formatAmountYuan,
+  startOrderPrepay,
 } from '@/lib/checkout'
 import { getQuotaStatus } from '@/lib/plan'
+import { prepayStatusSummary } from '@/lib/pay/prepay'
 
 export async function GET() {
   const user = getAuthUser()
@@ -21,6 +23,7 @@ export async function GET() {
     priceYuan: formatAmountYuan(getProPriceFen()),
     mockPayAllowed: mockPayAllowed(),
     providers: listPayProviders(),
+    prepay: prepayStatusSummary(),
     orders: listOrdersForUser(user.id, 10),
   })
 }
@@ -52,6 +55,22 @@ export async function POST(request) {
           (mockPayAllowed()
             ? '演示模式：可直接确认支付开通专业档（非真实扣款）'
             : '演示支付已关闭；请使用兑换码或配置微信/支付宝通道'),
+      })
+    }
+
+    if (action === 'prepay') {
+      const result = await startOrderPrepay(
+        user.id,
+        body.orderId || body.orderNo,
+        body.provider,
+      )
+      if (!result.ok) {
+        return Response.json({ error: result.error, code: result.code }, { status: 400 })
+      }
+      return Response.json({
+        ok: true,
+        order: result.order,
+        prepay: result.prepay,
       })
     }
 

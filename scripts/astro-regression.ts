@@ -1161,6 +1161,65 @@ console.log('\n=== 21d. 订单号与标价 ===')
   else process.env.PLAN_PAY_NOTIFY_SECRET = prev
 }
 
+console.log('\n=== 21d2. 支付预下单签名 ===')
+{
+  const { generateKeyPairSync } = require('crypto')
+  const { rsaSha256SignBase64, alipaySignContent, payDryRunEnabled } = require('../lib/pay/sign')
+  const { createAlipayPagePrepay } = require('../lib/pay/alipay-prepay')
+  const { createWechatNativePrepayDry } = require('../lib/pay/wechat-prepay')
+
+  assert('默认 dry-run', payDryRunEnabled() === true)
+
+  const { privateKey } = generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+    privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    publicKeyEncoding: { type: 'spki', format: 'pem' },
+  })
+  const sig = rsaSha256SignBase64('hello', privateKey)
+  assert('RSA 签名非空', typeof sig === 'string' && sig.length > 20)
+  assert('支付宝参数排序', alipaySignContent({ b: '2', a: '1', sign: 'x' }) === 'a=1&b=2')
+
+  const envKeys = [
+    'ALIPAY_APP_ID',
+    'ALIPAY_PRIVATE_KEY',
+    'PLAN_PAY_NOTIFY_SECRET',
+    'WECHAT_PAY_APP_ID',
+    'WECHAT_PAY_MCH_ID',
+    'WECHAT_PAY_API_V3_KEY',
+    'WECHAT_PAY_MCH_SERIAL',
+    'WECHAT_PAY_MCH_PRIVATE_KEY',
+    'PLAN_PAY_DRY_RUN',
+  ] as const
+  const prevEnv: Record<string, string | undefined> = {}
+  for (const k of envKeys) prevEnv[k] = process.env[k]
+
+  process.env.PLAN_PAY_DRY_RUN = '1'
+  process.env.PLAN_PAY_NOTIFY_SECRET = 'test-notify'
+  process.env.ALIPAY_APP_ID = '2088test'
+  process.env.ALIPAY_PRIVATE_KEY = privateKey
+  process.env.WECHAT_PAY_APP_ID = 'wx_test'
+  process.env.WECHAT_PAY_MCH_ID = '190000'
+  process.env.WECHAT_PAY_API_V3_KEY = 'v3key0123456789012345678901234567'
+  process.env.WECHAT_PAY_MCH_SERIAL = 'SERIALTEST'
+  process.env.WECHAT_PAY_MCH_PRIVATE_KEY = privateKey
+
+  const order = { orderNo: 'LJTESTPREPAY001', amountFen: 9900, amountYuan: '99.00' }
+  const ali = createAlipayPagePrepay(order)
+  assert('支付宝 dry-run ok', ali.ok === true, (ali as any).error)
+  assert('支付宝有 form.sign', !!(ali as any).prepay?.form?.sign)
+  assert('支付宝 mode dry_run', (ali as any).prepay?.mode === 'dry_run')
+
+  const wx = createWechatNativePrepayDry(order)
+  assert('微信 dry-run ok', wx.ok === true, (wx as any).error)
+  assert('微信有 codeUrl', !!(wx as any).prepay?.codeUrl)
+  assert('微信 mode dry_run', (wx as any).prepay?.mode === 'dry_run')
+
+  for (const k of envKeys) {
+    if (prevEnv[k] === undefined) delete process.env[k]
+    else process.env[k] = prevEnv[k]
+  }
+}
+
 console.log('\n=== 21e. 解读会话 ===')
 {
   const {
