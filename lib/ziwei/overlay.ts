@@ -7,6 +7,8 @@
 import {
   getDaXianSiHua,
   getLiuNianSiHua,
+  getLiuYueSiHua,
+  getYearStemIndex,
   getYearBranchIndex,
   buildAllSelfSihua,
   getSiHuaByStem,
@@ -56,7 +58,7 @@ export type FeihuaNextHop = {
 }
 
 /** 本命飞化链一环：来因 → 化星 → 落宫（+对宫）+ 落宫宫干再飞一跳 */
-export type FeihuaLayer = 'natal' | 'daxian' | 'liunian'
+export type FeihuaLayer = 'natal' | 'daxian' | 'liunian' | 'liuyue'
 
 export type FeihuaLink = {
   layer: FeihuaLayer
@@ -192,6 +194,25 @@ export function buildLiuNianFeihuaChain(chart: ZiweiChart, year: number): Feihua
   })
 }
 
+/**
+ * 流月干四化飞化链
+ * @param month 月序 1–12（与运势月表/五虎遁一致）
+ */
+export function buildLiuYueFeihuaChain(
+  chart: ZiweiChart,
+  year: number,
+  month: number,
+): FeihuaLink[] {
+  const m = Math.min(12, Math.max(1, Math.floor(month) || 1))
+  const yearStem = getYearStemIndex(year)
+  const ly = getLiuYueSiHua(yearStem, m)
+  return buildFeihuaChainFromTransforms(chart, ly.transforms, {
+    fromLabel: `流月${m}月${ly.stemName}干`,
+    usePalaceLaiYin: true,
+    layer: 'liuyue',
+  })
+}
+
 function detectSelfSihuaOnPalace(palace: {
   stem: number
   stars: { name: string }[]
@@ -242,14 +263,21 @@ export interface OverlayState {
   daXianFeihuaChain?: FeihuaLink[]
   /** 仅飞星口径：流年飞化链 */
   liuNianFeihuaChain?: FeihuaLink[]
+  /** 流月序号 1–12（飞星口径下用于流月链） */
+  month?: number
+  /** 仅飞星口径：流月干名 */
+  liuYueStemName?: string
+  /** 仅飞星口径：流月飞化链 */
+  liuYueFeihuaChain?: FeihuaLink[]
 }
 
 export function buildOverlay(
   chart: ZiweiChart,
   year: number,
-  opts?: { school?: ZiweiSchool },
+  opts?: { school?: ZiweiSchool; month?: number },
 ): OverlayState {
   const school: ZiweiSchool = opts?.school === 'feixing' ? 'feixing' : 'ni'
+  const month = Math.min(12, Math.max(1, Math.floor(opts?.month ?? new Date().getMonth() + 1) || 1))
   const age = year - chart.birthInfo.year
   let daXianIndex = chart.daXians.findIndex(
     (d) => age >= d.startAge && age <= d.endAge,
@@ -287,10 +315,15 @@ export function buildOverlay(
       : undefined
   const liuNianFeihuaChain =
     school === 'feixing' ? buildLiuNianFeihuaChain(chart, year) : undefined
+  const liuYue =
+    school === 'feixing' ? getLiuYueSiHua(getYearStemIndex(year), month) : null
+  const liuYueFeihuaChain =
+    school === 'feixing' ? buildLiuYueFeihuaChain(chart, year, month) : undefined
 
   return {
     year,
     age,
+    month,
     daXianIndex,
     daXianBranch: dx?.palaceBranch ?? null,
     daXianName: dx?.palaceName ?? null,
@@ -306,6 +339,8 @@ export function buildOverlay(
     feihuaChain,
     daXianFeihuaChain,
     liuNianFeihuaChain,
+    liuYueStemName: liuYue?.stemName,
+    liuYueFeihuaChain,
   }
 }
 
@@ -343,6 +378,12 @@ export function formatOverlaySummary(o: OverlayState): string {
   if (o.school === 'feixing' && o.liuNianFeihuaChain?.length) {
     const ji = o.liuNianFeihuaChain.find((x) => x.siHua === '忌')
     if (ji?.fall?.length) parts.push(`流年化忌落${ji.fall.join('、')}`)
+  }
+  if (o.school === 'feixing' && o.liuYueFeihuaChain?.length) {
+    const ji = o.liuYueFeihuaChain.find((x) => x.siHua === '忌')
+    if (ji?.fall?.length) {
+      parts.push(`流月${o.month}月化忌落${ji.fall.join('、')}`)
+    }
   }
   return parts.join(' · ')
 }

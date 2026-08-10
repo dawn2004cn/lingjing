@@ -25,12 +25,13 @@ function majorsOf(chart: ZiweiChart, palaceName: string): string {
 export function buildZiweiRuleReading(
   chart: ZiweiChart,
   patterns: Pattern[],
-  opts?: { year?: number; school?: ZiweiSchool },
+  opts?: { year?: number; month?: number; school?: ZiweiSchool },
 ): string {
   const g = chart.birthInfo.gender === 'male' ? '乾造' : '坤造'
   const year = opts?.year ?? new Date().getFullYear()
+  const month = opts?.month ?? new Date().getMonth() + 1
   const school: ZiweiSchool = opts?.school === 'feixing' ? 'feixing' : 'ni'
-  const overlay = buildOverlay(chart, year, { school })
+  const overlay = buildOverlay(chart, year, { school, month })
   const lines: string[] = []
 
   lines.push('## 命盘总览（规则事实）')
@@ -120,6 +121,17 @@ export function buildZiweiRuleReading(
           lines.push(`- 流年化忌落：${ji.fall.join('、') || '—'}；对宫${ji.opposite.join('、') || '—'}`)
         }
       }
+      if (overlay.liuYueFeihuaChain?.length) {
+        lines.push('')
+        lines.push(
+          `## 流月飞化链（${overlay.year}年${overlay.month}月 · ${overlay.liuYueStemName || ''}干）`,
+        )
+        lines.push(...formatFeihuaChainLines(overlay.liuYueFeihuaChain, '月'))
+        const ji = overlay.liuYueFeihuaChain.find((x) => x.siHua === '忌')
+        if (ji) {
+          lines.push(`- 流月化忌落：${ji.fall.join('、') || '—'}；对宫${ji.opposite.join('、') || '—'}`)
+        }
+      }
     } else {
       lines.push(
         `- 大限宫主星：${majorsOf(chart, overlay.daXianName)}（只论宫位星曜，不另飞大限四化）`,
@@ -132,7 +144,7 @@ export function buildZiweiRuleReading(
   lines.push('- 以上星位、格局、运限均为算法输出，润色时不得改动或新增星曜。')
   lines.push(
     school === 'feixing'
-      ? '- 飞星口径已输出本命/大限/流年多层飞化链（各含落宫再飞一跳）、自化与来因宫；更长叠链仍建议人工复核。'
+      ? '- 飞星口径已输出本命/大限/流年/流月多层飞化链（各含落宫再飞一跳）、自化与来因宫；合盘互飞另见合盘矩阵。'
       : '- 默认倪师口径：不使用宫干自化、大限四化作主断；可传 ziweiSchool=feixing 切换。',
   )
   lines.push('- 语气宜克制正向，不作恐吓式断言。')

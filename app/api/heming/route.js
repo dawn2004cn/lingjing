@@ -3,6 +3,7 @@ import { buildHemingSystemPrompt, buildHemingUserPrompt } from '@/lib/ziwei/hemi
 import {
   buildHemingMatrix,
   formatHemingMatrixForPrompt,
+  buildHemingFlyFacts,
 } from '@/lib/ziwei/heming-matrix'
 import { normalizeMarkdown } from '@/lib/markdown/normalize'
 import { citationRiskScore, buildZiweiCitationFacts, withZiweiPatterns } from '@/lib/astro/citation-guard'
@@ -57,6 +58,7 @@ export async function POST(request) {
 
     const matrix = buildHemingMatrix(chartA, chartB)
     const matrixText = formatHemingMatrixForPrompt(matrix)
+    const flyFacts = buildHemingFlyFacts(matrix)
     const allowed = new Set([
       ...collectZiweiAllowedTerms(chartA, []),
       ...collectZiweiAllowedTerms(chartB, []),
@@ -69,6 +71,7 @@ export async function POST(request) {
       natalSiHua: { ...(fa.natalSiHua || {}), ...(fb.natalSiHua || {}) },
       siHuaFall: { ...(fa.siHuaFall || {}) },
       palaceOpposite: { ...(fa.palaceOpposite || {}), ...(fb.palaceOpposite || {}) },
+      patterns: [...new Set([...(fa.patterns || []), ...(fb.patterns || [])])],
     }
     for (const [star, places] of Object.entries(fb.starPalaces || {})) {
       citationFacts.starPalaces[star] = [
@@ -76,7 +79,14 @@ export async function POST(request) {
       ]
     }
     for (const sh of ['禄', '权', '科', '忌']) {
-      const merged = [...new Set([...(fa.siHuaFall?.[sh] || []), ...(fb.siHuaFall?.[sh] || [])])]
+      const merged = [
+        ...new Set([
+          ...(fa.siHuaFall?.[sh] || []),
+          ...(fb.siHuaFall?.[sh] || []),
+          ...(flyFacts.aToBFall?.[sh] || []),
+          ...(flyFacts.bToAFall?.[sh] || []),
+        ]),
+      ]
       if (merged.length) citationFacts.siHuaFall[sh] = merged
     }
 

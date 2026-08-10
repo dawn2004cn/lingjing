@@ -19,7 +19,7 @@ import { buildBaziRuleReading } from '../lib/bazi/rule-reading'
 import { buildChartWithPatterns } from '../lib/ziwei'
 import { buildOverlay } from '../lib/ziwei/overlay'
 import { buildZiweiRuleReading } from '../lib/ziwei/rule-reading'
-import { buildHemingMatrix, formatHemingMatrixForPrompt } from '../lib/ziwei/heming-matrix'
+import { buildHemingMatrix, formatHemingMatrixForPrompt, buildHemingFlyFacts } from '../lib/ziwei/heming-matrix'
 import { buildYunshiReport, buildLifeKLine } from '../lib/ziwei/yunshi'
 import { probeTimeBoundary } from '../lib/astro/boundary'
 import { buildDualBoundary } from '../lib/astro/dual-boundary'
@@ -45,7 +45,7 @@ import { probeJieQiBoundary, formatJieQiForPrompt } from '../lib/astro/jieqi-bou
 import { auditMonthJieQiYear } from '../lib/astro/jieqi-year-audit'
 import { computePrecisionFlags, birthInputFromRecord } from '../lib/astro/precision-flags'
 import { citationRiskScore, extractStarPalaceClaims, buildZiweiCitationFacts, buildBaziCitationFacts, withZiweiPatterns } from '../lib/astro/citation-guard'
-import { buildNatalLaiYin, buildNatalFeihuaChain, buildDaXianFeihuaChain, buildLiuNianFeihuaChain } from '../lib/ziwei/overlay'
+import { buildNatalLaiYin, buildNatalFeihuaChain, buildDaXianFeihuaChain, buildLiuNianFeihuaChain, buildLiuYueFeihuaChain } from '../lib/ziwei/overlay'
 import { Lunar } from 'lunar-javascript'
 
 let failed = 0
@@ -221,6 +221,11 @@ console.log('\n=== 9. 合盘互飞与运势K线 ===')
   assert('互飞甲→乙有4条', matrix.aToB.length === 4)
   assert('关键宫含命宫', matrix.keyPalaces.some((r) => r.name.includes('命')))
   assert('互飞文案可生成', formatHemingMatrixForPrompt(matrix).includes('四化互飞'))
+  assert('互飞含对宫字段', matrix.aToB.every((h) => 'otherOpposite' in h && 'nextHopOnOther' in h))
+  assert('互飞语义图有行', Array.isArray(matrix.graphLines))
+  assert('互飞 prompt 含再飞或语义图', /再飞|语义图/.test(formatHemingMatrixForPrompt(matrix)))
+  const flyFacts = buildHemingFlyFacts(matrix)
+  assert('互飞事实可索引', !!flyFacts.aToBFall && !!flyFacts.bToAFall)
 
   const report = buildYunshiReport(a, 2026)
   assert('年度报告有12宫', report.palaces.length === 12)
@@ -1027,6 +1032,7 @@ console.log('\n=== 20. 占卜集大成适配器冒烟 ===')
   assert('飞星规则含飞化链', zwFly.ruleReading.includes('飞化链'))
   assert('飞星规则含大限飞化链', zwFly.ruleReading.includes('大限飞化链'))
   assert('飞星规则含流年飞化链', zwFly.ruleReading.includes('流年飞化链'))
+  assert('飞星规则含流月飞化链', zwFly.ruleReading.includes('流月飞化链'))
   const flyChart = (zwFly.chart as any)?.chart
   if (flyChart) {
     const ly = buildNatalLaiYin(flyChart)
@@ -1039,9 +1045,13 @@ console.log('\n=== 20. 占卜集大成适配器冒烟 ===')
     const dxChain = buildDaXianFeihuaChain(flyChart, 0)
     assert('大限飞化链有环', dxChain.length === 4, String(dxChain.length))
     assert('大限链图层', dxChain[0]?.layer === 'daxian')
-    const lnChain = buildLiuNianFeihuaChain(flyChart, new Date().getFullYear())
+    const y = new Date().getFullYear()
+    const lnChain = buildLiuNianFeihuaChain(flyChart, y)
     assert('流年飞化链有环', lnChain.length === 4, String(lnChain.length))
     assert('流年链图层', lnChain[0]?.layer === 'liunian')
+    const lyChain = buildLiuYueFeihuaChain(flyChart, y, 3)
+    assert('流月飞化链有环', lyChain.length === 4, String(lyChain.length))
+    assert('流月链图层', lyChain[0]?.layer === 'liuyue')
   }
 
   const okCite = citationRiskScore('命宫紫微在庙，夫妻宫无化忌', new Set(['命宫', '紫微', '夫妻宫']))
