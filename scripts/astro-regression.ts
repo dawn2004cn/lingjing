@@ -1075,6 +1075,15 @@ console.log('\n=== 21b. 会员档位元数据 ===')
   assert('todayKey 格式', /^\d{4}-\d{2}-\d{2}$/.test(todayKey()))
 }
 
+console.log('\n=== 21c. 兑换码格式 ===')
+{
+  const { normalizeRedeemCode, formatRedeemCode, mintRedeemCodeValue } = require('../lib/redeem')
+  const minted = mintRedeemCodeValue()
+  assert('mint 以 LJ 开头', minted.startsWith('LJ') && minted.length === 10, minted)
+  assert('normalize 去分隔符', normalizeRedeemCode('lj-ab12-cd34') === 'LJAB12CD34')
+  assert('format 展示', formatRedeemCode('LJABCD1234') === 'LJ-ABCD-1234')
+}
+
 console.log('\n=== 21. 大六壬九宗门简判 + 原典/笔画 ===')
 {
   // 贼克：唯一下克上

@@ -6,13 +6,15 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 export default function ProfilePage() {
-  const { user, loading } = useAuth()
+  const { user, loading, refetch } = useAuth()
   const [oldP, setOldP] = useState('')
   const [newP, setNewP] = useState('')
   const [confirm, setConfirm] = useState('')
+  const [redeem, setRedeem] = useState('')
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
   const [saving, setSaving] = useState(false)
+  const [redeeming, setRedeeming] = useState(false)
   const router = useRouter()
 
   if (loading) return null
@@ -36,8 +38,27 @@ export default function ProfilePage() {
     } catch (e) { setErr(e.message) } finally { setSaving(false) }
   }
 
+  const submitRedeem = async (e) => {
+    e.preventDefault()
+    setMsg(''); setErr('')
+    if (!redeem.trim()) { setErr('请输入兑换码'); return }
+    setRedeeming(true)
+    try {
+      const res = await fetch('/api/plan/redeem', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: redeem.trim() }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error || '兑换失败')
+      setMsg(d.message || '兑换成功')
+      setRedeem('')
+      if (typeof refetch === 'function') await refetch()
+    } catch (e) { setErr(e.message) } finally { setRedeeming(false) }
+  }
+
   return (
-    <div className="page-shell flex min-h-screen items-center justify-center px-4">
+    <div className="page-shell flex min-h-screen items-center justify-center px-4 py-16">
       <div className="card p-8 w-full max-w-sm animate-slide-up">
         <div className="flex items-center gap-3 mb-6">
           <Link href="/" className="text-[rgba(245,234,210,0.55)] hover:text-[#fff6e2] transition-colors">
@@ -64,9 +85,28 @@ export default function ProfilePage() {
                 : `已用 ${user.quota.used} / ${user.quota.dailyLimit}（剩余 ${user.quota.remaining}）`}
             </p>
             <p className="mt-1 text-[rgba(245,234,210,0.4)]">
-              排盘与规则事实不限额；AI 润色/追问计入额度。专业档由管理员开通（支付网关未接）。
+              排盘与规则事实不限额；AI 润色/追问计入额度。可用兑换码升级专业档。
             </p>
           </div>
+        )}
+
+        {user.role !== 'admin' && user.plan !== 'pro' && (
+          <form onSubmit={submitRedeem} className="mb-6 space-y-3">
+            <div className="input-field">
+              <label className="input-label">专业档兑换码</label>
+              <input
+                type="text"
+                className="input-base"
+                value={redeem}
+                onChange={(e) => setRedeem(e.target.value)}
+                placeholder="LJ-XXXX-XXXX"
+                autoComplete="off"
+              />
+            </div>
+            <button type="submit" disabled={redeeming} className="btn-primary">
+              {redeeming ? '兑换中...' : '兑换升级'}
+            </button>
+          </form>
         )}
 
         <div className="mb-6 h-px bg-[var(--line)]" />

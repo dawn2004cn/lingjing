@@ -12,6 +12,11 @@ export default function AdminPage() {
   const [error, setError] = useState('')
   const [users, setUsers] = useState(null)
   const [showUsers, setShowUsers] = useState(false)
+  const [showCodes, setShowCodes] = useState(false)
+  const [codes, setCodes] = useState(null)
+  const [mintCount, setMintCount] = useState(1)
+  const [mintNote, setMintNote] = useState('')
+  const [mintedFlash, setMintedFlash] = useState([])
   const [deleteConfirm, setDeleteConfirm] = useState(null)
   const [rechecking, setRechecking] = useState(null)
 
@@ -118,6 +123,43 @@ export default function AdminPage() {
     } catch (e) { setError(e.message) }
   }, [fetchUsers])
 
+  const fetchCodes = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/redeem-codes')
+      if (!res.ok) throw new Error('获取兑换码失败')
+      const d = await res.json()
+      setCodes(d.codes)
+    } catch (e) { setError(e.message) }
+  }, [])
+
+  const mintCodes = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/redeem-codes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ count: mintCount, note: mintNote, plan: 'pro', maxUses: 1 }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error || '生成失败')
+      setMintedFlash((d.created || []).map((c) => c.display))
+      setMintNote('')
+      fetchCodes()
+    } catch (e) { setError(e.message) }
+  }, [mintCount, mintNote, fetchCodes])
+
+  const disableCode = useCallback(async (id) => {
+    try {
+      const res = await fetch('/api/admin/redeem-codes', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, disabled: true }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error || '停用失败')
+      fetchCodes()
+    } catch (e) { setError(e.message) }
+  }, [fetchCodes])
+
   useEffect(() => {
     if (loading) return
     if (!user) { router.push('/login'); return }
@@ -126,8 +168,15 @@ export default function AdminPage() {
   }, [user, loading, router, fetchDashboard])
 
   const openUsers = async () => {
+    setShowCodes(false)
     setShowUsers(true)
     fetchUsers()
+  }
+
+  const openCodes = async () => {
+    setShowUsers(false)
+    setShowCodes(true)
+    fetchCodes()
   }
 
   if (loading || !user) return null
@@ -158,7 +207,7 @@ export default function AdminPage() {
           </div>
         )}
 
-        {data && !showUsers && (
+        {data && !showUsers && !showCodes && (
           <>
             {/* Stats Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -191,6 +240,20 @@ export default function AdminPage() {
               </div>
               <div className="stat-value">{data.totalUsers}</div>
               <p className="text-xs text-[rgba(245,234,210,0.4)] mt-1">点击查看和管理用户</p>
+            </button>
+
+            <button onClick={openCodes} className="card p-5 mb-8 animate-slide-up w-full text-left cursor-pointer hover:border-[var(--gold-bright)]/40 transition-all">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-lg">🎟</span>
+                  <span className="stat-label">专业档兑换码</span>
+                </div>
+                <svg className="w-4 h-4 text-[rgba(245,234,210,0.35)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12h15m0 0l-6.75-6.75M19.5 12l-6.75 6.75" />
+                </svg>
+              </div>
+              <div className="stat-value text-base">生成 / 停用</div>
+              <p className="text-xs text-[rgba(245,234,210,0.4)] mt-1">支付网关前可运营：发码 → 用户在个人设置兑换</p>
             </button>
 
             {data.accuracy && (data.accuracy.needsBackfill > 0 || data.accuracy.crossMismatch > 0 || data.accuracy.crossPartial > 0) && (
@@ -528,7 +591,112 @@ export default function AdminPage() {
           </div>
         )}
 
-        {!data && !error && !showUsers && (
+        {showCodes && (
+          <div className="animate-slide-up">
+            <div className="flex items-center gap-3 mb-6">
+              <button
+                onClick={() => { setShowCodes(false); setMintedFlash([]) }}
+                className="text-[rgba(245,234,210,0.55)] hover:text-[#fff6e2] transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <h2 className="text-[#fff6e2] text-lg font-semibold tracking-tight">专业档兑换码</h2>
+              <button onClick={fetchCodes} className="btn-ghost !text-xs ml-auto">刷新</button>
+            </div>
+
+            <div className="card p-5 mb-5 space-y-3">
+              <p className="text-[10px] tracking-[0.14em] text-[var(--gold-bright)]">批量生成</p>
+              <div className="flex flex-wrap gap-3 items-end">
+                <label className="input-field !mb-0">
+                  <span className="input-label">数量</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={50}
+                    className="input-base !w-24"
+                    value={mintCount}
+                    onChange={(e) => setMintCount(Math.max(1, Math.min(50, Number(e.target.value) || 1)))}
+                  />
+                </label>
+                <label className="input-field !mb-0 flex-1 min-w-[140px]">
+                  <span className="input-label">备注</span>
+                  <input
+                    type="text"
+                    className="input-base"
+                    value={mintNote}
+                    onChange={(e) => setMintNote(e.target.value)}
+                    placeholder="可选，如活动名"
+                  />
+                </label>
+                <button type="button" className="btn-primary !w-auto px-4" onClick={mintCodes}>
+                  生成 pro 码
+                </button>
+              </div>
+              {mintedFlash.length > 0 && (
+                <div className="rounded-md border border-[var(--jade)]/30 bg-[rgba(80,160,120,0.08)] px-3 py-2 text-[11px] text-[rgba(247,236,215,0.75)]">
+                  刚生成：{mintedFlash.join(' · ')}
+                </div>
+              )}
+            </div>
+
+            {!codes ? (
+              <div className="flex items-center justify-center py-20">
+                <p className="text-xs text-[rgba(245,234,210,0.5)] tracking-[0.18em]">加载中...</p>
+              </div>
+            ) : (
+              <div className="card overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-[var(--line)]">
+                        <th className="text-left py-3 px-4 text-[rgba(245,234,210,0.55)] font-medium">兑换码</th>
+                        <th className="text-left py-3 px-4 text-[rgba(245,234,210,0.55)] font-medium">档位</th>
+                        <th className="text-left py-3 px-4 text-[rgba(245,234,210,0.55)] font-medium">用量</th>
+                        <th className="text-left py-3 px-4 text-[rgba(245,234,210,0.55)] font-medium">备注</th>
+                        <th className="text-left py-3 px-4 text-[rgba(245,234,210,0.55)] font-medium">状态</th>
+                        <th className="text-left py-3 px-4 text-[rgba(245,234,210,0.55)] font-medium">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {codes.map((c, i) => (
+                        <tr key={c.id} className={i % 2 === 0 ? '' : 'bg-[rgba(245,234,210,0.02)]'}>
+                          <td className="py-2.5 px-4 text-[#fff6e2] font-mono">{c.display}</td>
+                          <td className="py-2.5 px-4 text-[rgba(247,236,215,0.7)]">{c.plan}</td>
+                          <td className="py-2.5 px-4 text-[rgba(247,236,215,0.7)]">
+                            {c.used_count}/{c.max_uses}
+                          </td>
+                          <td className="py-2.5 px-4 text-[rgba(245,234,210,0.45)]">{c.note || '—'}</td>
+                          <td className="py-2.5 px-4">
+                            {c.disabled
+                              ? '已停用'
+                              : c.remaining <= 0
+                                ? '已用尽'
+                                : '可用'}
+                          </td>
+                          <td className="py-2.5 px-4">
+                            {!c.disabled && (
+                              <button
+                                type="button"
+                                className="text-xs text-[var(--cinnabar)]"
+                                onClick={() => disableCode(c.id)}
+                              >
+                                停用
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {!data && !error && !showUsers && !showCodes && (
           <div className="flex items-center justify-center py-20">
             <p className="text-xs text-[rgba(245,234,210,0.5)] tracking-[0.18em]">加载中...</p>
           </div>
