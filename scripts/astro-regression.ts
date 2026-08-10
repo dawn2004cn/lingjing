@@ -45,7 +45,7 @@ import { probeJieQiBoundary, formatJieQiForPrompt } from '../lib/astro/jieqi-bou
 import { auditMonthJieQiYear } from '../lib/astro/jieqi-year-audit'
 import { computePrecisionFlags, birthInputFromRecord } from '../lib/astro/precision-flags'
 import { citationRiskScore, extractStarPalaceClaims, buildZiweiCitationFacts, buildBaziCitationFacts, withZiweiPatterns } from '../lib/astro/citation-guard'
-import { buildNatalLaiYin, buildNatalFeihuaChain, buildDaXianFeihuaChain, buildLiuNianFeihuaChain, buildLiuYueFeihuaChain } from '../lib/ziwei/overlay'
+import { buildNatalLaiYin, buildNatalFeihuaChain, buildDaXianFeihuaChain, buildLiuNianFeihuaChain, buildLiuYueFeihuaChain, buildLiuRiFeihuaChain } from '../lib/ziwei/overlay'
 import { Lunar } from 'lunar-javascript'
 
 let failed = 0
@@ -1033,6 +1033,7 @@ console.log('\n=== 20. 占卜集大成适配器冒烟 ===')
   assert('飞星规则含大限飞化链', zwFly.ruleReading.includes('大限飞化链'))
   assert('飞星规则含流年飞化链', zwFly.ruleReading.includes('流年飞化链'))
   assert('飞星规则含流月飞化链', zwFly.ruleReading.includes('流月飞化链'))
+  assert('飞星规则含流日飞化链', zwFly.ruleReading.includes('流日飞化链'))
   const flyChart = (zwFly.chart as any)?.chart
   if (flyChart) {
     const ly = buildNatalLaiYin(flyChart)
@@ -1052,6 +1053,9 @@ console.log('\n=== 20. 占卜集大成适配器冒烟 ===')
     const lyChain = buildLiuYueFeihuaChain(flyChart, y, 3)
     assert('流月飞化链有环', lyChain.length === 4, String(lyChain.length))
     assert('流月链图层', lyChain[0]?.layer === 'liuyue')
+    const lrChain = buildLiuRiFeihuaChain(flyChart, y, 3, 15)
+    assert('流日飞化链有环', lrChain.length === 4, String(lrChain.length))
+    assert('流日链图层', lrChain[0]?.layer === 'liuri')
   }
 
   const okCite = citationRiskScore('命宫紫微在庙，夫妻宫无化忌', new Set(['命宫', '紫微', '夫妻宫']))
@@ -1129,12 +1133,32 @@ console.log('\n=== 21c. 兑换码格式 ===')
 
 console.log('\n=== 21d. 订单号与标价 ===')
 {
-  const { mintOrderNo, formatAmountYuan, getProPriceFen, mockPayAllowed } = require('../lib/checkout')
+  const { mintOrderNo, formatAmountYuan, getProPriceFen, mockPayAllowed, listPayProviders } = require('../lib/checkout')
+  const { createPaymentIntent, verifyNotifySecret, normalizePayProvider } = require('../lib/pay/providers')
   const no = mintOrderNo()
   assert('订单号 LJ 前缀', no.startsWith('LJ') && no.length >= 14, no)
   assert('金额格式', formatAmountYuan(9900) === '99.00')
   assert('标价为正', getProPriceFen() > 0)
   assert('mockPay 布尔', typeof mockPayAllowed() === 'boolean')
+  const providers = listPayProviders()
+  assert('通道列表含 mock', providers.some((p: { id: string }) => p.id === 'mock'))
+  assert('通道列表含 wechat', providers.some((p: { id: string }) => p.id === 'wechat'))
+  assert('normalize wechat', normalizePayProvider('WeChat') === 'wechat')
+  const intent = createPaymentIntent(
+    { orderNo: 'LJTEST', amountFen: 9900, amountYuan: '99.00' },
+    'mock',
+  )
+  if (mockPayAllowed()) {
+    assert('mock intent ok', intent.ok === true)
+  } else {
+    assert('mock 关闭时不可用', intent.ok === false)
+  }
+  const prev = process.env.PLAN_PAY_NOTIFY_SECRET
+  process.env.PLAN_PAY_NOTIFY_SECRET = 'test-secret-xyz'
+  assert('notify 密钥校验通过', verifyNotifySecret('test-secret-xyz') === true)
+  assert('notify 密钥校验失败', verifyNotifySecret('wrong') === false)
+  if (prev === undefined) delete process.env.PLAN_PAY_NOTIFY_SECRET
+  else process.env.PLAN_PAY_NOTIFY_SECRET = prev
 }
 
 console.log('\n=== 21. 大六壬九宗门简判 + 原典/笔画 ===')

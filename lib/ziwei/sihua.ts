@@ -12,6 +12,7 @@
 
 import type { ZiweiChart, Palace, SiHua } from './types';
 import { SI_HUA_TABLE, STEMS } from './constants';
+import { Solar } from 'lunar-javascript';
 
 // ─── 1) 由天干索引取四化四星 ───────────────────────────────────
 /** 天干索引 0-9 → { 禄, 权, 科, 忌 } 对应星名 */
@@ -106,6 +107,38 @@ export function getLiuYueSiHua(yearStem: number, month: number): {
     stemName: STEMS[stemIndex] ?? '',
     transforms: getSiHuaByStem(stemIndex),
   };
+}
+
+// ─── 5b) 流日四化（公历日 → 日柱天干）────────────────────────
+/**
+ * 流日天干：由公历年月日取日柱天干（lunar-javascript），再映射四化。
+ * 与八字日柱同源口径（默认不跨子时边界，取当日日干）。
+ */
+export function getLiuRiSiHua(
+  year: number,
+  month: number,
+  day: number,
+): {
+  stemIndex: number;
+  stemName: string;
+  ganZhi: string;
+  transforms: Record<SiHua, string>;
+} {
+  const y = Math.floor(year)
+  const m = Math.min(12, Math.max(1, Math.floor(month) || 1))
+  const d = Math.min(31, Math.max(1, Math.floor(day) || 1))
+  const lunar = Solar.fromYmd(y, m, d).getLunar()
+  const ganZhi =
+    typeof lunar.getDayInGanZhi === 'function' ? lunar.getDayInGanZhi() : `${lunar.getDayGan()}${lunar.getDayZhi()}`
+  const gan = ganZhi?.[0] || lunar.getDayGan() || '甲'
+  let stemIndex = STEMS.indexOf(gan)
+  if (stemIndex < 0) stemIndex = 0
+  return {
+    stemIndex,
+    stemName: STEMS[stemIndex] ?? '',
+    ganZhi: ganZhi || `${STEMS[stemIndex]}`,
+    transforms: getSiHuaByStem(stemIndex),
+  }
 }
 
 // ─── 6) 宫干自化检测 ──────────────────────────────────────────

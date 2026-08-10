@@ -5,6 +5,7 @@ import {
   createProOrder,
   getProPriceFen,
   listOrdersForUser,
+  listPayProviders,
   mockPayAllowed,
   formatAmountYuan,
 } from '@/lib/checkout'
@@ -19,6 +20,7 @@ export async function GET() {
     priceFen: getProPriceFen(),
     priceYuan: formatAmountYuan(getProPriceFen()),
     mockPayAllowed: mockPayAllowed(),
+    providers: listPayProviders(),
     orders: listOrdersForUser(user.id, 10),
   })
 }
@@ -33,7 +35,7 @@ export async function POST(request) {
     const action = body.action || 'create'
 
     if (action === 'create') {
-      const result = createProOrder(user.id)
+      const result = createProOrder(user.id, { provider: body.provider || 'mock' })
       if (!result.ok) {
         return Response.json({ error: result.error }, { status: 400 })
       }
@@ -41,10 +43,15 @@ export async function POST(request) {
         ok: true,
         order: result.order,
         reused: !!result.reused,
+        intent: result.intent,
+        intentError: result.intentError || null,
         mockPayAllowed: mockPayAllowed(),
-        hint: mockPayAllowed()
-          ? '演示模式：可直接确认支付开通专业档（非真实扣款）'
-          : '演示支付已关闭；请使用兑换码或等待正式支付通道',
+        providers: listPayProviders(),
+        hint:
+          result.intent?.message ||
+          (mockPayAllowed()
+            ? '演示模式：可直接确认支付开通专业档（非真实扣款）'
+            : '演示支付已关闭；请使用兑换码或配置微信/支付宝通道'),
       })
     }
 

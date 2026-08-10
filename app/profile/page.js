@@ -147,8 +147,17 @@ export default function ProfilePage() {
                 标价 ¥{checkout?.priceYuan || '99.00'}
                 {checkout?.mockPayAllowed !== false
                   ? ' · 当前为演示支付（不真实扣款）'
-                  : ' · 演示支付已关，请用兑换码'}
+                  : ' · 演示支付已关，请用兑换码或正式通道回调'}
               </p>
+              {Array.isArray(checkout?.providers) && checkout.providers.length > 0 && (
+                <ul className="text-[10px] text-[rgba(245,234,210,0.45)] space-y-0.5">
+                  {checkout.providers.map((p) => (
+                    <li key={p.id}>
+                      {p.label}：{p.available ? '可用' : '未就绪'} · {p.hint}
+                    </li>
+                  ))}
+                </ul>
+              )}
               {!pendingOrder ? (
                 <button
                   type="button"

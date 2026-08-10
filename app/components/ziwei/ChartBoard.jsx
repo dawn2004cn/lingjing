@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import PalaceCell from './PalaceCell'
 import { buildOverlay } from '@/lib/ziwei/overlay'
 
@@ -30,12 +30,19 @@ export default function ChartBoard({ chart, patterns = [], school = 'ni' }) {
   const birthYear = chart?.birthInfo?.year || 1990
   const [year, setYear] = useState(() => new Date().getFullYear())
   const [month, setMonth] = useState(() => new Date().getMonth() + 1)
+  const [day, setDay] = useState(() => new Date().getDate())
   const ziweiSchool = school === 'feixing' ? 'feixing' : 'ni'
 
   const overlay = useMemo(
-    () => (chart ? buildOverlay(chart, year, { school: ziweiSchool, month }) : null),
-    [chart, year, month, ziweiSchool],
+    () => (chart ? buildOverlay(chart, year, { school: ziweiSchool, month, day }) : null),
+    [chart, year, month, day, ziweiSchool],
   )
+
+  const dayMax = useMemo(() => new Date(year, month, 0).getDate(), [year, month])
+
+  useEffect(() => {
+    if (day > dayMax) setDay(dayMax)
+  }, [day, dayMax])
 
   if (!chart?.palaces?.length) return null
 
@@ -127,6 +134,31 @@ export default function ChartBoard({ chart, patterns = [], school = 'ni' }) {
         >
           +月
         </button>
+        <button
+          type="button"
+          className="btn-ghost !text-xs !px-2 !py-1"
+          onClick={() => setDay((d) => Math.max(1, d - 1))}
+        >
+          −日
+        </button>
+        <input
+          type="number"
+          className="input-base !w-16 !py-1 !text-sm text-center"
+          value={day}
+          min={1}
+          max={dayMax}
+          onChange={(e) => {
+            const v = parseInt(e.target.value, 10)
+            if (!Number.isNaN(v)) setDay(Math.min(dayMax, Math.max(1, v)))
+          }}
+        />
+        <button
+          type="button"
+          className="btn-ghost !text-xs !px-2 !py-1"
+          onClick={() => setDay((d) => Math.min(dayMax, d + 1))}
+        >
+          +日
+        </button>
         {overlay && (
           <p className="text-[11px] text-[rgba(245,234,210,0.55)] w-full sm:w-auto sm:ml-auto">
             虚岁约{overlay.age}
@@ -136,6 +168,7 @@ export default function ChartBoard({ chart, patterns = [], school = 'ni' }) {
             {overlay.liuYueStemName
               ? ` · 流月${overlay.month}月${overlay.liuYueStemName}干`
               : ''}
+            {overlay.liuRiGanZhi ? ` · 流日${overlay.liuRiGanZhi}` : ''}
           </p>
         )}
       </div>
@@ -278,6 +311,21 @@ export default function ChartBoard({ chart, patterns = [], school = 'ni' }) {
                 {overlay.liuYueFeihuaChain.map((link) => (
                   <p key={`ly-chain-${link.siHua}`} className="leading-relaxed">
                     <span className="text-[var(--gold-bright)]">月{link.siHua}</span>
+                    {' · '}
+                    {link.summary}
+                  </p>
+                ))}
+              </div>
+            )}
+            {overlay.liuRiFeihuaChain?.length > 0 && (
+              <div className="space-y-1.5 text-[11px] text-[rgba(245,234,210,0.7)]">
+                <p className="text-[rgba(245,234,210,0.45)]">
+                  流日飞化链（{overlay.year}-{String(overlay.month).padStart(2, '0')}-
+                  {String(overlay.day).padStart(2, '0')} · {overlay.liuRiGanZhi}）
+                </p>
+                {overlay.liuRiFeihuaChain.map((link) => (
+                  <p key={`lr-chain-${link.siHua}`} className="leading-relaxed">
+                    <span className="text-[var(--gold-bright)]">日{link.siHua}</span>
                     {' · '}
                     {link.summary}
                   </p>
