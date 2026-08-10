@@ -56,7 +56,10 @@ export type FeihuaNextHop = {
 }
 
 /** 本命飞化链一环：来因 → 化星 → 落宫（+对宫）+ 落宫宫干再飞一跳 */
+export type FeihuaLayer = 'natal' | 'daxian' | 'liunian'
+
 export type FeihuaLink = {
+  layer: FeihuaLayer
   siHua: SiHua
   starName: string
   from: string[]
@@ -77,17 +80,26 @@ function findStarPalaces(chart: ZiweiChart, starName: string) {
 }
 
 /**
- * 本命年干四化飞化链（最小版：落宫 + 对宫 + 落宫宫干离心一跳）
+ * 由四化表构建飞化链（本命 / 大限 / 流年共用）
+ * @param fromLabel 无宫干来因时的来源标签，如「年干」「大限宫干甲」「流年丙干」
+ * @param usePalaceLaiYin 是否用来因宫（宫干回溯）作为 from
  */
-export function buildNatalFeihuaChain(chart: ZiweiChart): FeihuaLink[] {
-  const stem = chart.lunarInfo?.yearStem ?? 0
-  const transforms = getSiHuaByStem(stem)
+export function buildFeihuaChainFromTransforms(
+  chart: ZiweiChart,
+  transforms: Record<SiHua, string>,
+  opts?: { fromLabel?: string; usePalaceLaiYin?: boolean; layer?: FeihuaLayer },
+): FeihuaLink[] {
+  const fromLabel = opts?.fromLabel || '干'
+  const usePalaceLaiYin = opts?.usePalaceLaiYin !== false
+  const layer: FeihuaLayer = opts?.layer || 'natal'
   const links: FeihuaLink[] = []
 
   for (const siHua of ['禄', '权', '科', '忌'] as SiHua[]) {
     const starName = transforms[siHua]
     if (!starName) continue
-    const from = findIncomingPalaces(chart, starName, siHua).map((p) => p.name)
+    const from = usePalaceLaiYin
+      ? findIncomingPalaces(chart, starName, siHua).map((p) => p.name)
+      : []
     const fallPalaces = findStarPalaces(chart, starName)
     const fall = fallPalaces.map((p) => p.name)
     const opposite = fallPalaces
@@ -119,7 +131,7 @@ export function buildNatalFeihuaChain(chart: ZiweiChart): FeihuaLink[] {
       }
     }
 
-    const fromStr = from.length ? from.join('、') : '年干'
+    const fromStr = from.length ? from.join('、') : fromLabel
     const fallStr = fall.length ? fall.join('、') : '未入盘'
     const oppStr = opposite.length ? `→对宫${opposite.join('、')}` : ''
     const selfStr = selfHua ? '（落宫自化）' : ''
@@ -132,6 +144,7 @@ export function buildNatalFeihuaChain(chart: ZiweiChart): FeihuaLink[] {
         : ''
 
     links.push({
+      layer,
       siHua,
       starName,
       from,
@@ -143,6 +156,40 @@ export function buildNatalFeihuaChain(chart: ZiweiChart): FeihuaLink[] {
     })
   }
   return links
+}
+
+/** 本命年干四化飞化链 */
+export function buildNatalFeihuaChain(chart: ZiweiChart): FeihuaLink[] {
+  const stem = chart.lunarInfo?.yearStem ?? 0
+  return buildFeihuaChainFromTransforms(chart, getSiHuaByStem(stem), {
+    fromLabel: `年干${STEMS[stem] || ''}`,
+    usePalaceLaiYin: true,
+    layer: 'natal',
+  })
+}
+
+/** 大限宫干四化飞化链 */
+export function buildDaXianFeihuaChain(
+  chart: ZiweiChart,
+  daXianIndex: number,
+): FeihuaLink[] {
+  const dx = getDaXianSiHua(chart, daXianIndex)
+  if (!dx) return []
+  return buildFeihuaChainFromTransforms(chart, dx.transforms, {
+    fromLabel: `大限宫干${dx.stemName}`,
+    usePalaceLaiYin: true,
+    layer: 'daxian',
+  })
+}
+
+/** 流年年干四化飞化链 */
+export function buildLiuNianFeihuaChain(chart: ZiweiChart, year: number): FeihuaLink[] {
+  const liu = getLiuNianSiHua(year)
+  return buildFeihuaChainFromTransforms(chart, liu.transforms, {
+    fromLabel: `流年${liu.stemName}干`,
+    usePalaceLaiYin: true,
+    layer: 'liunian',
+  })
 }
 
 function detectSelfSihuaOnPalace(palace: {
@@ -159,8 +206,8 @@ function detectSelfSihuaOnPalace(palace: {
   return found
 }
 
-export function formatFeihuaChainLines(links: FeihuaLink[]): string[] {
-  return links.map((l) => `- ${l.siHua}：${l.summary}`)
+export function formatFeihuaChainLines(links: FeihuaLink[], titlePrefix = ''): string[] {
+  return links.map((l) => `- ${titlePrefix}${l.siHua}：${l.summary}`)
 }
 
 export interface OverlayState {
@@ -191,6 +238,10 @@ export interface OverlayState {
   laiYin?: { siHua: SiHua; starName: string; from: string[] }[]
   /** 仅飞星口径：本命飞化链（来因→落宫→再飞一跳） */
   feihuaChain?: FeihuaLink[]
+  /** 仅飞星口径：大限飞化链 */
+  daXianFeihuaChain?: FeihuaLink[]
+  /** 仅飞星口径：流年飞化链 */
+  liuNianFeihuaChain?: FeihuaLink[]
 }
 
 export function buildOverlay(
@@ -230,6 +281,12 @@ export function buildOverlay(
       : undefined
   const laiYin = school === 'feixing' ? buildNatalLaiYin(chart) : undefined
   const feihuaChain = school === 'feixing' ? buildNatalFeihuaChain(chart) : undefined
+  const daXianFeihuaChain =
+    school === 'feixing' && daXianIndex >= 0
+      ? buildDaXianFeihuaChain(chart, daXianIndex)
+      : undefined
+  const liuNianFeihuaChain =
+    school === 'feixing' ? buildLiuNianFeihuaChain(chart, year) : undefined
 
   return {
     year,
@@ -247,6 +304,8 @@ export function buildOverlay(
     selfSihua,
     laiYin,
     feihuaChain,
+    daXianFeihuaChain,
+    liuNianFeihuaChain,
   }
 }
 
@@ -274,8 +333,16 @@ export function formatOverlaySummary(o: OverlayState): string {
   if (o.school === 'feixing' && o.feihuaChain?.length) {
     const ji = o.feihuaChain.find((x) => x.siHua === '忌')
     if (ji?.fall?.length) {
-      parts.push(`化忌落${ji.fall.join('、')}`)
+      parts.push(`本命化忌落${ji.fall.join('、')}`)
     }
+  }
+  if (o.school === 'feixing' && o.daXianFeihuaChain?.length) {
+    const ji = o.daXianFeihuaChain.find((x) => x.siHua === '忌')
+    if (ji?.fall?.length) parts.push(`大限化忌落${ji.fall.join('、')}`)
+  }
+  if (o.school === 'feixing' && o.liuNianFeihuaChain?.length) {
+    const ji = o.liuNianFeihuaChain.find((x) => x.siHua === '忌')
+    if (ji?.fall?.length) parts.push(`流年化忌落${ji.fall.join('、')}`)
   }
   return parts.join(' · ')
 }

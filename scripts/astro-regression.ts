@@ -44,8 +44,8 @@ import {
 import { probeJieQiBoundary, formatJieQiForPrompt } from '../lib/astro/jieqi-boundary'
 import { auditMonthJieQiYear } from '../lib/astro/jieqi-year-audit'
 import { computePrecisionFlags, birthInputFromRecord } from '../lib/astro/precision-flags'
-import { citationRiskScore, extractStarPalaceClaims, buildZiweiCitationFacts, buildBaziCitationFacts } from '../lib/astro/citation-guard'
-import { buildNatalLaiYin, buildNatalFeihuaChain } from '../lib/ziwei/overlay'
+import { citationRiskScore, extractStarPalaceClaims, buildZiweiCitationFacts, buildBaziCitationFacts, withZiweiPatterns } from '../lib/astro/citation-guard'
+import { buildNatalLaiYin, buildNatalFeihuaChain, buildDaXianFeihuaChain, buildLiuNianFeihuaChain } from '../lib/ziwei/overlay'
 import { Lunar } from 'lunar-javascript'
 
 let failed = 0
@@ -1025,6 +1025,8 @@ console.log('\n=== 20. 占卜集大成适配器冒烟 ===')
   assert('倪师无宫干四化行', !zw.ruleReading.includes('大限四化（宫干'))
   assert('飞星规则含来因', zwFly.ruleReading.includes('来因'))
   assert('飞星规则含飞化链', zwFly.ruleReading.includes('飞化链'))
+  assert('飞星规则含大限飞化链', zwFly.ruleReading.includes('大限飞化链'))
+  assert('飞星规则含流年飞化链', zwFly.ruleReading.includes('流年飞化链'))
   const flyChart = (zwFly.chart as any)?.chart
   if (flyChart) {
     const ly = buildNatalLaiYin(flyChart)
@@ -1034,6 +1036,12 @@ console.log('\n=== 20. 占卜集大成适配器冒烟 ===')
     assert('飞化链4环', chain.length === 4, String(chain.length))
     assert('飞化链有落宫或摘要', chain.every((c) => !!c.summary && Array.isArray(c.fall)))
     assert('化忌链存在', !!chain.find((c) => c.siHua === '忌'))
+    const dxChain = buildDaXianFeihuaChain(flyChart, 0)
+    assert('大限飞化链有环', dxChain.length === 4, String(dxChain.length))
+    assert('大限链图层', dxChain[0]?.layer === 'daxian')
+    const lnChain = buildLiuNianFeihuaChain(flyChart, new Date().getFullYear())
+    assert('流年飞化链有环', lnChain.length === 4, String(lnChain.length))
+    assert('流年链图层', lnChain[0]?.layer === 'liunian')
   }
 
   const okCite = citationRiskScore('命宫紫微在庙，夫妻宫无化忌', new Set(['命宫', '紫微', '夫妻宫']))
@@ -1062,8 +1070,28 @@ console.log('\n=== 20. 占卜集大成适配器冒烟 ===')
   assert('八字日主错位', baziBad.score >= 3, String(baziBad.score))
 
   if (flyChart) {
-    const zf = buildZiweiCitationFacts(flyChart)
+    const zf = withZiweiPatterns(buildZiweiCitationFacts(flyChart), [{ name: '机月同梁' }])
     assert('事实索引有星', Object.keys(zf.starPalaces || {}).length >= 10)
+    assert('事实图有命宫', !!zf.mingGong)
+    assert('事实图有四化落', Object.keys(zf.siHuaFall || {}).length >= 1)
+    assert('事实图有对宫', Object.keys(zf.palaceOpposite || {}).length >= 1)
+    assert('事实图有格局', (zf.patterns || []).includes('机月同梁'))
+
+    const fallJi = (zf.siHuaFall?.忌 || [])[0]
+    if (fallJi) {
+      const wrongPalace = fallJi.includes('命') ? '财帛宫' : '命宫'
+      const badFall = citationRiskScore(
+        `化忌入${wrongPalace}`,
+        new Set(['化忌', wrongPalace, '命宫', '财帛宫', ...(zf.siHuaFall?.忌 || [])]),
+        zf,
+      )
+      // 若 wrong 恰好也是落宫则跳过
+      if (!(zf.siHuaFall?.忌 || []).some((p) => p.includes(wrongPalace.replace('宫', '')) || wrongPalace.includes(p.replace('宫', '')))) {
+        assert('化忌落宫错位', badFall.score >= 3, String(badFall.score))
+      }
+    }
+    const badPat = citationRiskScore('成紫府朝垣格', new Set(['紫府朝垣格']), zf)
+    assert('假格局错位', badPat.score >= 3, String(badPat.score))
   }
 }
 

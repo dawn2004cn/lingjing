@@ -7,7 +7,7 @@ import { buildZiweiRuleReading, collectZiweiAllowedTerms } from '@/lib/ziwei/rul
 import { buildBaziChart, formatBaziForPrompt } from '@/lib/bazi/engine'
 import { buildBaziRuleReading, collectBaziAllowedTerms } from '@/lib/bazi/rule-reading'
 import { detectZipingPatterns, formatZipingForPrompt } from '@/lib/bazi/ziping'
-import { citationRiskScore, buildZiweiCitationFacts, buildBaziCitationFacts } from '@/lib/astro/citation-guard'
+import { citationRiskScore, buildZiweiCitationFacts, buildBaziCitationFacts, withZiweiPatterns } from '@/lib/astro/citation-guard'
 import { normalizeMarkdown } from '@/lib/markdown/normalize'
 import { buildDualBoundary, formatDualForPrompt } from '@/lib/astro/dual-boundary'
 import {
@@ -172,7 +172,7 @@ export async function POST(request) {
         chartText = formatChartForPrompt(chart, patterns, { trueSolar, timeIndex })
       }
       ruleReading = buildZiweiRuleReading(chart, patterns, { school })
-      citationFacts = buildZiweiCitationFacts(chart)
+      citationFacts = withZiweiPatterns(buildZiweiCitationFacts(chart), patterns)
       if (dual?.applicable) {
         const dualText = formatDualForPrompt(dual)
         ruleReading += `\n\n${dualText}`

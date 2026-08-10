@@ -1,7 +1,7 @@
 import { getAdapter, isValidSystemId, listSystems } from '@/lib/divination/registry'
 import { enrichWithPyEngine, formatSidecarMarkdown, compareDaliurenSidecar, compareJinkouSidecar } from '@/lib/divination/py-engine-client'
 import OpenAI from 'openai'
-import { citationRiskScore, buildZiweiCitationFacts, buildBaziCitationFacts } from '@/lib/astro/citation-guard'
+import { citationRiskScore, buildZiweiCitationFacts, buildBaziCitationFacts, withZiweiPatterns } from '@/lib/astro/citation-guard'
 import { normalizeMarkdown } from '@/lib/markdown/normalize'
 import { logAccuracyEvent } from '@/lib/astro/accuracy-events'
 import { getAuthUser } from '@/lib/auth'
@@ -122,7 +122,10 @@ export async function POST(request, context) {
       result = normalizeMarkdown(result)
       const facts =
         system === 'ziwei' && built.chart?.chart
-          ? buildZiweiCitationFacts(built.chart.chart)
+          ? withZiweiPatterns(
+              buildZiweiCitationFacts(built.chart.chart),
+              built.chart.patterns || [],
+            )
           : system === 'bazi' && built.chart
             ? buildBaziCitationFacts(built.chart)
             : null

@@ -102,6 +102,24 @@ export function buildZiweiRuleReading(
           )
         }
       }
+      if (overlay.daXianFeihuaChain?.length) {
+        lines.push('')
+        lines.push('## 大限飞化链')
+        lines.push(...formatFeihuaChainLines(overlay.daXianFeihuaChain, '限'))
+        const ji = overlay.daXianFeihuaChain.find((x) => x.siHua === '忌')
+        if (ji) {
+          lines.push(`- 大限化忌落：${ji.fall.join('、') || '—'}；对宫${ji.opposite.join('、') || '—'}`)
+        }
+      }
+      if (overlay.liuNianFeihuaChain?.length) {
+        lines.push('')
+        lines.push(`## 流年飞化链（${overlay.year}）`)
+        lines.push(...formatFeihuaChainLines(overlay.liuNianFeihuaChain, '年'))
+        const ji = overlay.liuNianFeihuaChain.find((x) => x.siHua === '忌')
+        if (ji) {
+          lines.push(`- 流年化忌落：${ji.fall.join('、') || '—'}；对宫${ji.opposite.join('、') || '—'}`)
+        }
+      }
     } else {
       lines.push(
         `- 大限宫主星：${majorsOf(chart, overlay.daXianName)}（只论宫位星曜，不另飞大限四化）`,
@@ -114,7 +132,7 @@ export function buildZiweiRuleReading(
   lines.push('- 以上星位、格局、运限均为算法输出，润色时不得改动或新增星曜。')
   lines.push(
     school === 'feixing'
-      ? '- 飞星口径已输出大限宫干四化、自化、来因宫与本命飞化链（含落宫再飞一跳）；多限叠加长链仍建议人工复核。'
+      ? '- 飞星口径已输出本命/大限/流年多层飞化链（各含落宫再飞一跳）、自化与来因宫；更长叠链仍建议人工复核。'
       : '- 默认倪师口径：不使用宫干自化、大限四化作主断；可传 ziweiSchool=feixing 切换。',
   )
   lines.push('- 语气宜克制正向，不作恐吓式断言。')

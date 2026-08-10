@@ -5,7 +5,7 @@ import {
   formatHemingMatrixForPrompt,
 } from '@/lib/ziwei/heming-matrix'
 import { normalizeMarkdown } from '@/lib/markdown/normalize'
-import { citationRiskScore, buildZiweiCitationFacts } from '@/lib/astro/citation-guard'
+import { citationRiskScore, buildZiweiCitationFacts, withZiweiPatterns } from '@/lib/astro/citation-guard'
 import { logAccuracyEvent } from '@/lib/astro/accuracy-events'
 import { collectZiweiAllowedTerms } from '@/lib/ziwei/rule-reading'
 import {
@@ -66,11 +66,18 @@ export async function POST(request) {
     const citationFacts = {
       system: 'ziwei',
       starPalaces: { ...(fa.starPalaces || {}) },
+      natalSiHua: { ...(fa.natalSiHua || {}), ...(fb.natalSiHua || {}) },
+      siHuaFall: { ...(fa.siHuaFall || {}) },
+      palaceOpposite: { ...(fa.palaceOpposite || {}), ...(fb.palaceOpposite || {}) },
     }
     for (const [star, places] of Object.entries(fb.starPalaces || {})) {
       citationFacts.starPalaces[star] = [
         ...new Set([...(citationFacts.starPalaces[star] || []), ...places]),
       ]
+    }
+    for (const sh of ['禄', '权', '科', '忌']) {
+      const merged = [...new Set([...(fa.siHuaFall?.[sh] || []), ...(fb.siHuaFall?.[sh] || [])])]
+      if (merged.length) citationFacts.siHuaFall[sh] = merged
     }
 
     let crossCheckA = null

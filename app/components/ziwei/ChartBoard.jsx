@@ -217,6 +217,30 @@ export default function ChartBoard({ chart, patterns = [], school = 'ni' }) {
                 ))}
               </div>
             )}
+            {overlay.daXianFeihuaChain?.length > 0 && (
+              <div className="space-y-1.5 text-[11px] text-[rgba(245,234,210,0.7)]">
+                <p className="text-[rgba(245,234,210,0.45)]">大限飞化链</p>
+                {overlay.daXianFeihuaChain.map((link) => (
+                  <p key={`dx-chain-${link.siHua}`} className="leading-relaxed">
+                    <span className="text-[var(--gold-bright)]">限{link.siHua}</span>
+                    {' · '}
+                    {link.summary}
+                  </p>
+                ))}
+              </div>
+            )}
+            {overlay.liuNianFeihuaChain?.length > 0 && (
+              <div className="space-y-1.5 text-[11px] text-[rgba(245,234,210,0.7)]">
+                <p className="text-[rgba(245,234,210,0.45)]">流年飞化链（{overlay.year}）</p>
+                {overlay.liuNianFeihuaChain.map((link) => (
+                  <p key={`ln-chain-${link.siHua}`} className="leading-relaxed">
+                    <span className="text-[var(--gold-bright)]">年{link.siHua}</span>
+                    {' · '}
+                    {link.summary}
+                  </p>
+                ))}
+              </div>
+            )}
             {overlay.selfSihua?.length > 0 ? (
               <div className="flex flex-wrap gap-2 text-[11px]">
                 {overlay.selfSihua.map((p) => (
