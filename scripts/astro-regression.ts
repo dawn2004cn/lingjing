@@ -1220,6 +1220,127 @@ console.log('\n=== 21d2. 支付预下单签名 ===')
   }
 }
 
+console.log('\n=== 21d3. 支付回调平台验签 ===')
+{
+  const { generateKeyPairSync, createCipheriv, randomBytes } = require('crypto')
+  const {
+    rsaSha256Verify,
+    verifyWechatNotifyHeaders,
+    verifyAlipayNotifyParams,
+    decryptWechatResource,
+    authenticatePayNotify,
+  } = require('../lib/pay/verify-notify')
+  const { rsaSha256SignBase64, alipaySignContent } = require('../lib/pay/sign')
+
+  const { privateKey, publicKey } = generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+    privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    publicKeyEncoding: { type: 'spki', format: 'pem' },
+  })
+
+  const content = 'hello-verify'
+  const signature = rsaSha256SignBase64(content, privateKey)
+  assert('RSA 验签通过', rsaSha256Verify(content, signature, publicKey) === true)
+  assert('RSA 验签拒绝篡改', rsaSha256Verify('tampered', signature, publicKey) === false)
+
+  const prevPlat = process.env.WECHAT_PAY_PLATFORM_PUBLIC_KEY
+  const prevAliPub = process.env.ALIPAY_PUBLIC_KEY
+  const prevV3 = process.env.WECHAT_PAY_API_V3_KEY
+  const prevSecret = process.env.PLAN_PAY_NOTIFY_SECRET
+  process.env.WECHAT_PAY_PLATFORM_PUBLIC_KEY = publicKey
+  process.env.ALIPAY_PUBLIC_KEY = publicKey
+  process.env.WECHAT_PAY_API_V3_KEY = '12345678901234567890123456789012'
+  process.env.PLAN_PAY_NOTIFY_SECRET = 'bridge-secret'
+
+  const ts = '1710000000'
+  const nonce = 'nonce123'
+  const body = JSON.stringify({ out_trade_no: 'LJWX1', id: 'evt1' })
+  const msg = `${ts}\n${nonce}\n${body}\n`
+  const wxSig = rsaSha256SignBase64(msg, privateKey)
+  const wxOk = verifyWechatNotifyHeaders({
+    timestamp: ts,
+    nonce,
+    body,
+    signature: wxSig,
+  })
+  assert('微信头验签通过', wxOk.ok === true, wxOk.error)
+  const wxBad = verifyWechatNotifyHeaders({
+    timestamp: ts,
+    nonce,
+    body: '{"id":"x"}',
+    signature: wxSig,
+  })
+  assert('微信头验签拒绝篡改', wxBad.ok === false)
+
+  const aliParams: Record<string, string> = {
+    out_trade_no: 'LJ1',
+    trade_status: 'TRADE_SUCCESS',
+    trade_no: '2024001',
+    app_id: '2088',
+  }
+  aliParams.sign = rsaSha256SignBase64(alipaySignContent(aliParams), privateKey)
+  const aliOk = verifyAlipayNotifyParams(aliParams)
+  assert('支付宝验签通过', aliOk.ok === true, aliOk.error)
+
+  // AES-GCM 加解密往返（nonce 为字符串，与微信一致）
+  const plainObj = { out_trade_no: 'LJAES1', trade_state: 'SUCCESS', transaction_id: 'TX1' }
+  const plainBuf = Buffer.from(JSON.stringify(plainObj), 'utf8')
+  const nonceStr = randomBytes(6).toString('hex') // 12 chars
+  const key = Buffer.from(process.env.WECHAT_PAY_API_V3_KEY as string)
+  const cipher = createCipheriv('aes-256-gcm', key, Buffer.from(nonceStr))
+  cipher.setAAD(Buffer.from('transaction'))
+  const enc = Buffer.concat([cipher.update(plainBuf), cipher.final()])
+  const tag = cipher.getAuthTag()
+  const ciphertext = Buffer.concat([enc, tag]).toString('base64')
+  const dec2 = decryptWechatResource(
+    {
+      ciphertext,
+      nonce: nonceStr,
+      associated_data: 'transaction',
+    },
+    process.env.WECHAT_PAY_API_V3_KEY,
+  )
+  assert('微信 resource 解密', dec2.ok === true && dec2.plain?.out_trade_no === 'LJAES1', dec2.error)
+
+  const fakeReq = {
+    headers: {
+      get(name: string) {
+        const n = name.toLowerCase()
+        if (n === 'wechatpay-timestamp') return ts
+        if (n === 'wechatpay-nonce') return nonce
+        if (n === 'wechatpay-signature') return wxSig
+        if (n === 'x-lingjing-pay-secret') return null
+        return null
+      },
+    },
+  }
+  const authWx = authenticatePayNotify('wechat', fakeReq, body, JSON.parse(body))
+  assert('统一鉴权微信平台', authWx.ok === true && authWx.mode === 'wechat_platform', (authWx as any).error)
+
+  const fakeReqSecret = {
+    headers: {
+      get(name: string) {
+        if (name.toLowerCase() === 'x-lingjing-pay-secret') return 'bridge-secret'
+        return null
+      },
+    },
+  }
+  const authBridge = authenticatePayNotify('wechat', fakeReqSecret, '', { orderNo: 'LJBRIDGE' })
+  assert('统一鉴权密钥桥', authBridge.ok === true && authBridge.mode === 'secret_bridge')
+
+  const authAli = authenticatePayNotify('alipay', { headers: { get: () => null } }, '', aliParams)
+  assert('统一鉴权支付宝', authAli.ok === true && authAli.mode === 'alipay_rsa2' && authAli.orderNo === 'LJ1')
+
+  if (prevPlat === undefined) delete process.env.WECHAT_PAY_PLATFORM_PUBLIC_KEY
+  else process.env.WECHAT_PAY_PLATFORM_PUBLIC_KEY = prevPlat
+  if (prevAliPub === undefined) delete process.env.ALIPAY_PUBLIC_KEY
+  else process.env.ALIPAY_PUBLIC_KEY = prevAliPub
+  if (prevV3 === undefined) delete process.env.WECHAT_PAY_API_V3_KEY
+  else process.env.WECHAT_PAY_API_V3_KEY = prevV3
+  if (prevSecret === undefined) delete process.env.PLAN_PAY_NOTIFY_SECRET
+  else process.env.PLAN_PAY_NOTIFY_SECRET = prevSecret
+}
+
 console.log('\n=== 21e. 解读会话 ===')
 {
   const {

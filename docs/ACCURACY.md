@@ -65,11 +65,11 @@ npm run test:astro
 - 铁板条文匹配冻结；演示哈希不得解读为真实命数
 - 紫微主站 `ziweiSchool=ni|feixing`；飞星含本命/大限/流年/流月/**流日**多层飞化链、自化、来因宫
 - 首页追问支持多轮线程；排盘与规则事实不限，LLM 计日额度
-- 会员档：`free` / `pro`；兑换码 + 订单；**微信 Native / 支付宝 page.pay 预下单**（RSA 签名 + 默认 dry-run；`PLAN_PAY_DRY_RUN=0` 可打真实网关）+ notify 入账
+- 会员档：`free` / `pro`；兑换码 + 订单；微信/支付宝预下单（默认 dry-run）+ **平台证书/公钥回调验签**（兼密钥桥）
 - citation：**语义事实图** + 词表加权；合盘互飞落点并入事实索引
 - 合盘：关键宫对照 + 四化互飞 + 落宫再飞一跳 / 关键宫落点语义图
 - **解读会话**：`/api/sessions` 持久化主文与追问；历史页可「继续会话」；URL `?session=`
-- **联调提示**：生产需配置商户密钥与 `PLAN_PAY_NOTIFY_SECRET`；微信回调建议再验平台证书签名
+- **生产联调**：配置商户密钥、平台证书/`ALIPAY_PUBLIC_KEY`；可关 `PLAN_PAY_ALLOW_SECRET_NOTIFY=0` 仅走渠道验签
 
 ## 旁证健康检查
 

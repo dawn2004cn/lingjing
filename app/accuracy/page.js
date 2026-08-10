@@ -56,9 +56,9 @@ const RULES = [
     ],
   },
   {
-    title: '产品级未做项（与术数深度解耦）',
+    title: '生产联调提示',
     items: [
-      '微信平台证书验签（预下单与 notify 入账已就绪；默认 dry-run，生产建议补平台证书校验）',
+      '配置商户密钥与平台证书后设 PLAN_PAY_DRY_RUN=0；可关 PLAN_PAY_ALLOW_SECRET_NOTIFY=0 仅接受渠道验签',
     ],
   },
   {
