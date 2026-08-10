@@ -5,7 +5,7 @@
 import { BRANCHES, STEMS } from './constants'
 import type { Pattern } from './patterns'
 import type { ZiweiChart } from './types'
-import { buildOverlay, formatOverlaySummary, natalYearStemName, formatLaiYinLine, type ZiweiSchool } from './overlay'
+import { buildOverlay, formatOverlaySummary, natalYearStemName, formatLaiYinLine, formatFeihuaChainLines, type ZiweiSchool } from './overlay'
 
 function majorsOf(chart: ZiweiChart, palaceName: string): string {
   const p = chart.palaces.find((x) => x.name === palaceName)
@@ -91,6 +91,17 @@ export function buildZiweiRuleReading(
           )
         }
       }
+      if (overlay.feihuaChain?.length) {
+        lines.push('')
+        lines.push('## 本命飞化链（来因→落宫→再飞一跳）')
+        lines.push(...formatFeihuaChainLines(overlay.feihuaChain))
+        const jiLink = overlay.feihuaChain.find((x) => x.siHua === '忌')
+        if (jiLink) {
+          lines.push(
+            `- 化忌链重点：落${jiLink.fall.join('、') || '—'}；对宫${jiLink.opposite.join('、') || '—'}`,
+          )
+        }
+      }
     } else {
       lines.push(
         `- 大限宫主星：${majorsOf(chart, overlay.daXianName)}（只论宫位星曜，不另飞大限四化）`,
@@ -103,7 +114,7 @@ export function buildZiweiRuleReading(
   lines.push('- 以上星位、格局、运限均为算法输出，润色时不得改动或新增星曜。')
   lines.push(
     school === 'feixing'
-      ? '- 飞星口径已输出大限宫干四化、自化与本命四化来因宫；复杂飞化链仍建议人工复核。'
+      ? '- 飞星口径已输出大限宫干四化、自化、来因宫与本命飞化链（含落宫再飞一跳）；多限叠加长链仍建议人工复核。'
       : '- 默认倪师口径：不使用宫干自化、大限四化作主断；可传 ziweiSchool=feixing 切换。',
   )
   lines.push('- 语气宜克制正向，不作恐吓式断言。')

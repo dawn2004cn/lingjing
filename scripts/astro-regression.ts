@@ -45,7 +45,7 @@ import { probeJieQiBoundary, formatJieQiForPrompt } from '../lib/astro/jieqi-bou
 import { auditMonthJieQiYear } from '../lib/astro/jieqi-year-audit'
 import { computePrecisionFlags, birthInputFromRecord } from '../lib/astro/precision-flags'
 import { citationRiskScore, extractStarPalaceClaims, buildZiweiCitationFacts, buildBaziCitationFacts } from '../lib/astro/citation-guard'
-import { buildNatalLaiYin } from '../lib/ziwei/overlay'
+import { buildNatalLaiYin, buildNatalFeihuaChain } from '../lib/ziwei/overlay'
 import { Lunar } from 'lunar-javascript'
 
 let failed = 0
@@ -1024,11 +1024,16 @@ console.log('\n=== 20. 占卜集大成适配器冒烟 ===')
   assert('倪师标明不另飞四化', zw.ruleReading.includes('不另飞'))
   assert('倪师无宫干四化行', !zw.ruleReading.includes('大限四化（宫干'))
   assert('飞星规则含来因', zwFly.ruleReading.includes('来因'))
+  assert('飞星规则含飞化链', zwFly.ruleReading.includes('飞化链'))
   const flyChart = (zwFly.chart as any)?.chart
   if (flyChart) {
     const ly = buildNatalLaiYin(flyChart)
     assert('来因宫条目为4', ly.length === 4, String(ly.length))
     assert('化忌来因有星名', !!ly.find((x) => x.siHua === '忌')?.starName)
+    const chain = buildNatalFeihuaChain(flyChart)
+    assert('飞化链4环', chain.length === 4, String(chain.length))
+    assert('飞化链有落宫或摘要', chain.every((c) => !!c.summary && Array.isArray(c.fall)))
+    assert('化忌链存在', !!chain.find((c) => c.siHua === '忌'))
   }
 
   const okCite = citationRiskScore('命宫紫微在庙，夫妻宫无化忌', new Set(['命宫', '紫微', '夫妻宫']))

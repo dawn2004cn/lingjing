@@ -192,7 +192,7 @@ export default function ChartBoard({ chart, patterns = [], school = 'ni' }) {
 
         {ziweiSchool === 'feixing' && overlay && (
           <div className="mt-4 pt-4 border-t border-[var(--line)] space-y-2">
-            <p className="text-xs tracking-[0.14em] text-[var(--gold-bright)]">飞星 · 来因 / 自化</p>
+            <p className="text-xs tracking-[0.14em] text-[var(--gold-bright)]">飞星 · 来因 / 自化 / 飞化链</p>
             {overlay.laiYin?.length > 0 && (
               <div className="text-[11px] text-[rgba(245,234,210,0.7)] space-y-1">
                 {overlay.laiYin.map((e) => (
@@ -201,6 +201,18 @@ export default function ChartBoard({ chart, patterns = [], school = 'ni' }) {
                     {' ← '}
                     {e.from.length ? e.from.join('、') : '未命中宫干'}
                     {e.siHua === '忌' ? '（化忌来因重点）' : ''}
+                  </p>
+                ))}
+              </div>
+            )}
+            {overlay.feihuaChain?.length > 0 && (
+              <div className="space-y-1.5 text-[11px] text-[rgba(245,234,210,0.7)]">
+                <p className="text-[rgba(245,234,210,0.45)]">本命飞化链</p>
+                {overlay.feihuaChain.map((link) => (
+                  <p key={`chain-${link.siHua}`} className="leading-relaxed">
+                    <span className="text-[var(--gold-bright)]">{link.siHua}</span>
+                    {' · '}
+                    {link.summary}
                   </p>
                 ))}
               </div>
