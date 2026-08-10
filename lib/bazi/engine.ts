@@ -292,6 +292,11 @@ export function formatBaziForPrompt(chart: BaziChart): string {
     lines.push(
       `- 喜用简判：日主${chart.yongShen.strength}；喜 ${chart.yongShen.xiYong.join('、')}；忌 ${chart.yongShen.jiShen.join('、')}`,
     )
+    if (chart.yongShen.tiaoHou) {
+      lines.push(
+        `- 调候简判：${chart.yongShen.tiaoHou.season}喜 ${chart.yongShen.tiaoHou.need.join('、')}`,
+      )
+    }
   }
   if (chart.daYun?.length) {
     const list = chart.daYun

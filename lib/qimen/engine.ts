@@ -130,6 +130,10 @@ export interface QimenChart {
     shi?: string
     status: string
     summary: string
+    /** 解析旁证局：阴阳 + 局数 */
+    parsed?: { yangDun: boolean; ju: number; yuan?: string }
+    /** 主引擎与旁证局数是否一致 */
+    juAlign?: 'match' | 'diff' | 'unknown'
   }
 }
 
@@ -277,6 +281,9 @@ export function buildQimenRuleReading(chart: QimenChart): string {
       chart.witness.ju ? `- 局：${chart.witness.ju}` : null,
       chart.witness.fu ? `- ${chart.witness.fu}` : null,
       chart.witness.shi ? `- ${chart.witness.shi}` : null,
+      chart.witness.juAlign
+        ? `- 局数对齐：${chart.witness.juAlign === 'match' ? '一致' : chart.witness.juAlign === 'diff' ? '不一致（以人工/旁证复核为准）' : '未知'}`
+        : null,
       `- ${chart.witness.summary}`,
     )
   }

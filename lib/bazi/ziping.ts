@@ -112,6 +112,13 @@ export function detectZipingPatterns(chart: BaziChart): ZipingPattern[] {
       level: '提示',
       description: `喜用倾向：${yong.xiYong.join('、') || '—'}；忌神倾向：${yong.jiShen.join('、') || '—'}。`,
     })
+    if (yong.tiaoHou) {
+      out.push({
+        name: '调候简判',
+        level: '提示',
+        description: `${yong.tiaoHou.season}（月支${yong.tiaoHou.monthZhi}）：${yong.tiaoHou.tip}。${yong.tiaoHou.note}`,
+      })
+    }
   }
 
   if (!out.length) {

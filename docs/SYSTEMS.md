@@ -4,7 +4,7 @@
 
 | ID | 名称 | 类别 | 引擎 | 默认口径 | 路由 | 黄金用例 |
 |----|------|------|------|----------|------|----------|
-| bazi | 子平八字 | 命理 | lunar-javascript + tyme4ts + ziping | 日柱流派2 | `/` | 已有 §10 |
+| bazi | 子平八字 | 命理 | lunar-javascript + tyme4ts + ziping | 日柱流派2；扶抑+调候简判 | `/` | 已有 §10 |
 | ziwei | 紫微斗数 | 命理 | iztro + integrity | 早子0/晚子12 | `/` | 已有 §10 |
 | meihua | 梅花易数 | 占卜 | lingjing-meihua | 时间 / 数字 / 汉字笔画；应期简判 | `/meihua` | §20–21 |
 | liuyao | 易经六爻 | 占卜 | lingjing-liuyao（自研） | 时间(伪随机)/铜钱；日月建合冲 | `/liuyao` | §20 |

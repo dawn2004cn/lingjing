@@ -31,7 +31,8 @@ import {
   BOUNDARY_DUAL_CASES,
   JIEQI_GOLDEN,
 } from '../lib/astro/golden-cases'
-import { TIEBAN_GOLDEN, XIAOLIUREN_GOLDEN } from '../lib/astro/divination-golden'
+import { TIEBAN_GOLDEN, XIAOLIUREN_GOLDEN, QIMEN_WITNESS_GOLDEN, BAZI_TIAOHOU_GOLDEN } from '../lib/astro/divination-golden'
+import { parseWitnessJu } from '../lib/qimen/witness'
 import {
   crossCheckBaziInput,
   crossCheckLunarToSolar,
@@ -832,6 +833,44 @@ console.log('\n=== 20. 占卜集大成适配器冒烟 ===')
     qm.integrity?.status === 'ok' || qm.integrity?.status === 'warn',
     qm.integrity?.status,
   )
+  assert('奇门旁证含对齐字段', !!(qm.chart as any).witness?.juAlign || (qm.chart as any).witness?.status === 'skip')
+
+  for (const g of QIMEN_WITNESS_GOLDEN) {
+    const built = getAdapter('qimen')!.build(g.input)
+    const ch = built.chart as any
+    assert(`${g.id} 节气`, ch.jieQi === g.engine.jieQi, ch.jieQi)
+    assert(`${g.id} 阴阳遁`, ch.yangDun === g.engine.yangDun)
+    assert(`${g.id} 局数`, ch.ju === g.engine.ju, String(ch.ju))
+    assert(`${g.id} 值符星`, ch.zhiFuStar === g.engine.zhiFuStar, ch.zhiFuStar)
+    assert(`${g.id} 值使门`, ch.zhiShiDoor === g.engine.zhiShiDoor, ch.zhiShiDoor)
+    if (ch.witness?.status === 'ok') {
+      assert(`${g.id} 旁证局`, String(ch.witness.ju || '').includes(g.witness.juIncludes), ch.witness.ju)
+      assert(`${g.id} 旁证符`, String(ch.witness.fu || '').includes(g.witness.fuIncludes), ch.witness.fu)
+      assert(`${g.id} 旁证使`, String(ch.witness.shi || '').includes(g.witness.shiIncludes), ch.witness.shi)
+      assert(`${g.id} 局对齐`, ch.witness.juAlign === g.witness.juAlign, ch.witness.juAlign)
+      const parsed = parseWitnessJu(ch.witness.ju)
+      assert(`${g.id} 旁证可解析`, !!parsed, ch.witness.ju)
+    }
+  }
+
+  for (const g of BAZI_TIAOHOU_GOLDEN) {
+    const built = getAdapter('bazi')!.build(g.input)
+    const ch = built.chart as any
+    assert(`${g.id} 日主`, ch.dayMaster === g.expect.dayMaster, ch.dayMaster)
+    assert(`${g.id} 月支`, ch.pillars?.month?.zhi === g.expect.monthZhi, ch.pillars?.month?.zhi)
+    assert(`${g.id} 强弱`, ch.yongShen?.strength === g.expect.strength, ch.yongShen?.strength)
+    assert(
+      `${g.id} 调候季节`,
+      ch.yongShen?.tiaoHou?.season === g.expect.tiaoHouSeason,
+      ch.yongShen?.tiaoHou?.season,
+    )
+    assert(
+      `${g.id} 调候喜`,
+      (ch.yongShen?.tiaoHou?.need || []).includes(g.expect.tiaoHouNeedIncludes),
+      JSON.stringify(ch.yongShen?.tiaoHou?.need),
+    )
+    assert(`${g.id} 规则含调候`, built.ruleReading.includes('调候'))
+  }
 
   const dlr = getAdapter('daliuren')!.build({ date: '2024-06-15', clock: '12:00', dayNight: 'day' })
   assert('大六壬四课', (dlr.chart as any).ke?.length === 4)

@@ -46,6 +46,12 @@ export function buildBaziRuleReading(chart: BaziChart): string {
     lines.push(`- 日主强弱简判：${y.strength}（分 ${y.score}）`)
     lines.push(`- 喜用：${y.xiYong.join('、')}；忌神倾向：${y.jiShen.join('、') || '—'}`)
     lines.push(`- ${y.note}`)
+    if (y.tiaoHou) {
+      lines.push(
+        `- 调候（${y.tiaoHou.season}/${y.tiaoHou.monthZhi}）：${y.tiaoHou.tip}`,
+      )
+      lines.push(`- ${y.tiaoHou.note}`)
+    }
   }
 
   if (chart.daYun?.length) {
@@ -69,6 +75,7 @@ export function buildBaziRuleReading(chart: BaziChart): string {
   lines.push('## 解读边界')
   lines.push('- 四柱、藏干、纳音、大运均为算法输出，润色时不得改动干支。')
   lines.push('- 喜用神为简判规则，非完整调候/格局定论，表述宜留有余地。')
+  lines.push('- 调候与扶抑可能取舍不同，重大定论请人工复核。')
   if (chart.daySect) {
     lines.push(`- ${chart.daySect.note}`)
   }
@@ -93,5 +100,8 @@ export function collectBaziAllowedTerms(chart: BaziChart): Set<string> {
   const y: YongShenResult | undefined = chart.yongShen
   y?.xiYong.forEach((x) => terms.add(x))
   y?.jiShen.forEach((x) => terms.add(x))
+  y?.tiaoHou?.need.forEach((x) => terms.add(x))
+  if (y?.tiaoHou?.season) terms.add(y.tiaoHou.season)
+  terms.add('调候')
   return terms
 }

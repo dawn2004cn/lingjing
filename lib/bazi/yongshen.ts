@@ -1,6 +1,6 @@
 /**
- * 八字喜用神简判（规则层，非完整调候/格局论）
- * 依据：日主五行强弱（同类+生我 vs 克我+我生+我克）与月令粗判。
+ * 八字喜用神简判 + 调候简判（规则层，非完整定论）
+ * 扶抑：日主五行强弱；调候：月令寒暖燥湿取用。
  */
 
 export type WuXing = '金' | '木' | '水' | '火' | '土'
@@ -30,6 +30,36 @@ const YUE_LING: Record<string, WuXing> = {
   辰: '土', 戌: '土', 丑: '土', 未: '土',
 }
 
+/** 月令调候（通行简表） */
+const TIAOHOU_TABLE: Record<
+  string,
+  { season: string; need: WuXing[]; avoid: WuXing[]; tip: string }
+> = {
+  寅: { season: '孟春', need: ['火', '水'], avoid: ['金'], tip: '余寒未尽，宜火解冻、水疏木' },
+  卯: { season: '仲春', need: ['水', '金'], avoid: ['火'], tip: '木旺，宜水润金修，防火燥木' },
+  辰: { season: '季春', need: ['水', '木'], avoid: ['土'], tip: '土气渐旺，宜水木疏通' },
+  巳: { season: '孟夏', need: ['水'], avoid: ['火'], tip: '火气渐盛，调候优先用水润局' },
+  午: { season: '仲夏', need: ['水', '金'], avoid: ['火'], tip: '炎热，水为调候要神，金次之' },
+  未: { season: '季夏', need: ['水', '金'], avoid: ['火', '土'], tip: '湿热交蒸，宜水金清润' },
+  申: { season: '孟秋', need: ['水', '火'], avoid: ['金'], tip: '金寒水冷将至，宜水润火暖' },
+  酉: { season: '仲秋', need: ['火', '水'], avoid: ['金'], tip: '金旺气肃，宜火暖水润' },
+  戌: { season: '季秋', need: ['火', '水'], avoid: ['土'], tip: '土燥金冷，宜火水调剂' },
+  亥: { season: '孟冬', need: ['火'], avoid: ['水'], tip: '水冷金寒，调候优先用火' },
+  子: { season: '仲冬', need: ['火'], avoid: ['水'], tip: '严冬，火为调候要神' },
+  丑: { season: '季冬', need: ['火', '金'], avoid: ['水', '土'], tip: '寒湿土旺，宜火暖金泄' },
+}
+
+export interface TiaoHouResult {
+  monthZhi: string
+  season: string
+  need: WuXing[]
+  avoid: WuXing[]
+  tip: string
+  /** 与扶抑喜用是否冲突（调候要神落在扶抑忌神中） */
+  conflictWithFuyi: boolean
+  note: string
+}
+
 export interface YongShenResult {
   dayMaster: string
   dayElement: WuXing
@@ -38,6 +68,32 @@ export interface YongShenResult {
   xiYong: WuXing[]
   jiShen: WuXing[]
   note: string
+  tiaoHou: TiaoHouResult
+}
+
+export function judgeTiaoHou(
+  monthZhi: string,
+  fuyiJiShen: WuXing[] = [],
+): TiaoHouResult {
+  const row = TIAOHOU_TABLE[monthZhi] || {
+    season: '未知',
+    need: [] as WuXing[],
+    avoid: [] as WuXing[],
+    tip: '月令未识别，调候从略',
+  }
+  const conflictWithFuyi = row.need.some((n) => fuyiJiShen.includes(n))
+  const note = conflictWithFuyi
+    ? `调候喜 ${row.need.join('、') || '—'}，与扶抑忌神有交叠，取用宜权衡（调候与扶抑不可机械叠加）。`
+    : `调候喜 ${row.need.join('、') || '—'}，忌过 ${row.avoid.join('、') || '—'}。`
+  return {
+    monthZhi,
+    season: row.season,
+    need: row.need,
+    avoid: row.avoid,
+    tip: row.tip,
+    conflictWithFuyi,
+    note,
+  }
 }
 
 export function judgeYongShen(input: {
@@ -69,7 +125,6 @@ export function judgeYongShen(input: {
   let xiYong: WuXing[]
   let jiShen: WuXing[]
   if (strength === '强' || strength === '偏强') {
-    // 宜泄耗克
     xiYong = [WO_SHENG[dayElement], WO_KE[dayElement], KE_WO[dayElement]]
     jiShen = [dayElement, SHENG_WO[dayElement]]
   } else if (strength === '弱' || strength === '偏弱') {
@@ -80,7 +135,6 @@ export function judgeYongShen(input: {
     jiShen = [KE_WO[dayElement]]
   }
 
-  // 去重保序
   xiYong = [...new Set(xiYong)]
   jiShen = [...new Set(jiShen)].filter((x) => !xiYong.includes(x))
 
@@ -91,6 +145,8 @@ export function judgeYongShen(input: {
         ? `日主${input.dayGan}（${dayElement}）${strength}，宜印比扶身，忌再泄耗克伐。`
         : `日主${input.dayGan}（${dayElement}）大致中和，喜流通有情，忌一边倒。`
 
+  const tiaoHou = judgeTiaoHou(input.monthZhi, jiShen)
+
   return {
     dayMaster: input.dayGan,
     dayElement,
@@ -99,6 +155,7 @@ export function judgeYongShen(input: {
     xiYong,
     jiShen,
     note,
+    tiaoHou,
   }
 }
 

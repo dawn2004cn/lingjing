@@ -1,5 +1,5 @@
 /**
- * 小六壬 / 铁板结构锁定用例（阶段 C）
+ * 小六壬 / 铁板 / 奇门旁证 / 八字调候锁定用例
  */
 
 export const XIAOLIUREN_GOLDEN = [
@@ -55,6 +55,67 @@ export const TIEBAN_GOLDEN = [
       piGua: '乾',
       versesAvailable: false,
       numbersAreDemoHash: true,
+    },
+  },
+] as const
+
+/**
+ * 奇门：主引擎锁定 + MIT 旁证快照（旁证与主盘局数可不一致）
+ * juAlign 期望在旁证包可用时成立。
+ */
+export const QIMEN_WITNESS_GOLDEN = [
+  {
+    id: 'qm-20240615-1200',
+    input: { date: '2024-06-15', clock: '12:00' },
+    engine: {
+      jieQi: '芒种',
+      yangDun: true,
+      ju: 8,
+      zhiFuStar: '天蓬',
+      zhiShiDoor: '休',
+    },
+    witness: {
+      juIncludes: '阳遁六局',
+      fuIncludes: '天柱',
+      shiIncludes: '惊门',
+      juAlign: 'diff' as const,
+    },
+  },
+  {
+    id: 'qm-20240105-1000',
+    input: { date: '2024-01-05', clock: '10:00' },
+    engine: {
+      jieQi: '冬至',
+      yangDun: true,
+      ju: 1,
+      zhiFuStar: '天蓬',
+      zhiShiDoor: '休',
+    },
+    witness: {
+      juIncludes: '阳遁一局',
+      fuIncludes: '天心',
+      shiIncludes: '开门',
+      juAlign: 'match' as const,
+    },
+  },
+] as const
+
+/** 八字调候锁定 */
+export const BAZI_TIAOHOU_GOLDEN = [
+  {
+    id: 'bazi-19900515-调候',
+    input: {
+      gender: '男' as const,
+      birthDate: '1990-05-15',
+      birthHour: '午时',
+      calendarType: '公历' as const,
+    },
+    expect: {
+      dayMaster: '庚',
+      monthZhi: '巳',
+      tiaoHouSeason: '孟夏',
+      tiaoHouNeedIncludes: '水',
+      strength: '偏强',
     },
   },
 ] as const
