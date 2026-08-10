@@ -31,9 +31,9 @@ import {
   BOUNDARY_DUAL_CASES,
   JIEQI_GOLDEN,
 } from '../lib/astro/golden-cases'
-import { TIEBAN_GOLDEN, XIAOLIUREN_GOLDEN, QIMEN_WITNESS_GOLDEN, BAZI_TIAOHOU_GOLDEN, DALIUREN_GOLDEN } from '../lib/astro/divination-golden'
+import { TIEBAN_GOLDEN, XIAOLIUREN_GOLDEN, QIMEN_WITNESS_GOLDEN, BAZI_TIAOHOU_GOLDEN, DALIUREN_GOLDEN, JINKOU_GOLDEN, MEIHUA_GOLDEN } from '../lib/astro/divination-golden'
 import { parseWitnessJu } from '../lib/qimen/witness'
-import { compareDaliurenSidecar } from '../lib/divination/py-engine-client'
+import { compareDaliurenSidecar, compareJinkouSidecar } from '../lib/divination/py-engine-client'
 import {
   crossCheckBaziInput,
   crossCheckLunarToSolar,
@@ -753,6 +753,16 @@ console.log('\n=== 20. 占卜集大成适配器冒烟 ===')
   assert('乾三爻变姤', (m3.chart as any).bian?.name === '天风姤', (m3.chart as any).bian?.name)
   assert('乾错卦为坤', (m2.chart as any).cuo?.name === '坤为地', (m2.chart as any).cuo?.name)
 
+  for (const g of MEIHUA_GOLDEN) {
+    const built = getAdapter('meihua')!.build(g.input)
+    const ch = built.chart as any
+    assert(`${g.id} 本卦`, ch.ben?.name === g.expect.ben, ch.ben?.name)
+    assert(`${g.id} 动爻`, ch.dongYao === g.expect.dongYao, String(ch.dongYao))
+    assert(`${g.id} 体用`, ch.tiYong?.relation === g.expect.relation, ch.tiYong?.relation)
+    assert(`${g.id} 应期速`, ch.yingQi?.pace === g.expect.yingPace, ch.yingQi?.pace)
+    assert(`${g.id} 应期数`, ch.yingQi?.count === g.expect.yingCount, String(ch.yingQi?.count))
+  }
+
   for (const id of [
     'bazi',
     'ziwei',
@@ -823,6 +833,28 @@ console.log('\n=== 20. 占卜集大成适配器冒烟 ===')
   assert('金口规则有四位', jk.ruleReading.includes('将神'))
   assert('金口有细断', !!(jk.chart as any).judgment?.summary)
   assert('金口规则含细断', jk.ruleReading.includes('四位细断'))
+
+  for (const g of JINKOU_GOLDEN) {
+    const built = getAdapter('jinkou')!.build(g.input)
+    const ch = built.chart as any
+    assert(`${g.id} 地分`, ch.difen === g.expect.difen, ch.difen)
+    assert(`${g.id} 月将`, ch.yueJiang === g.expect.yueJiang, ch.yueJiang)
+    assert(`${g.id} 贵人`, ch.guiRen === g.expect.guiRen, ch.guiRen)
+    assert(`${g.id} 人元`, ch.renYuan?.gan === g.expect.renGan, ch.renYuan?.gan)
+    assert(`${g.id} 贵神`, ch.guiShen?.name === g.expect.guiName, ch.guiShen?.name)
+    assert(`${g.id} 将神`, ch.jiangShen?.zhi === g.expect.jiangZhi, ch.jiangShen?.zhi)
+    assert(`${g.id} 旬空`, ch.xunKong === g.expect.xunKong, ch.xunKong)
+    assert(
+      `${g.id} 细断`,
+      String(ch.judgment?.summary || '').includes(g.expect.summaryIncludes),
+      ch.judgment?.summary,
+    )
+  }
+  const jkCmp = compareJinkouSidecar(
+    { difen: '午', jiangShen: { zhi: '申' }, guiShen: { name: '青龙' }, renYuan: { gan: '壬' } },
+    { ok: true, engine: 'kinjinkou', text: '人元壬 贵神青龙 将神申 地分午' },
+  )
+  assert('金口旁证对照 match', jkCmp.align === 'match', jkCmp.align)
 
   const qm = getAdapter('qimen')!.build({ date: '2024-06-15', clock: '12:00' })
   assert('奇门九宫', (qm.chart as any).palaces?.length === 9)
@@ -973,6 +1005,17 @@ console.log('\n=== 20. 占卜集大成适配器冒烟 ===')
     calendarType: '公历',
   })
   assert('紫微适配器完整性', zw.integrity?.status === 'ok' || zw.integrity?.status === 'warn')
+  assert('紫微默认倪师', zw.ruleReading.includes('倪师') || (zw.meta as any)?.ziweiSchool === 'ni')
+
+  const zwFly = getAdapter('ziwei')!.build({
+    gender: '男',
+    birthDate: '1990-05-15',
+    birthHour: '午时',
+    calendarType: '公历',
+    ziweiSchool: 'feixing',
+  })
+  assert('紫微飞星口径', (zwFly.meta as any)?.ziweiSchool === 'feixing')
+  assert('紫微飞星含大限四化文案', zwFly.ruleReading.includes('大限四化') || zwFly.ruleReading.includes('飞星'))
 }
 
 console.log('\n=== 21. 大六壬九宗门简判 + 原典/笔画 ===')

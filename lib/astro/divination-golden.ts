@@ -165,3 +165,72 @@ export const DALIUREN_GOLDEN = [
     },
   },
 ] as const
+
+/** 金口诀四位锁定 */
+export const JINKOU_GOLDEN = [
+  {
+    id: 'jk-20240615-午',
+    input: { date: '2024-06-15', clock: '12:00', difen: '午', dayNight: 'day' as const },
+    expect: {
+      difen: '午',
+      yueJiang: '申',
+      guiRen: '丑',
+      renGan: '壬',
+      guiName: '青龙',
+      jiangZhi: '申',
+      xunKong: '寅卯',
+      summaryIncludes: '用被体克',
+    },
+  },
+  {
+    id: 'jk-20240105-子',
+    input: { date: '2024-01-05', clock: '10:00', difen: '子', dayNight: 'day' as const },
+    expect: {
+      difen: '子',
+      yueJiang: '丑',
+      guiRen: '丑',
+      renGan: '壬',
+      guiName: '天后',
+      jiangZhi: '申',
+      xunKong: '戌亥',
+      summaryIncludes: '用生体',
+    },
+  },
+] as const
+
+/** 梅花应期/体用锁定 */
+export const MEIHUA_GOLDEN = [
+  {
+    id: 'mh-num-1-1-1',
+    input: { method: 'number' as const, num1: 1, num2: 1, num3: 1 },
+    expect: {
+      ben: '乾为天',
+      dongYao: 1,
+      relation: '比和',
+      yingPace: '中',
+      yingCount: 1,
+    },
+  },
+  {
+    id: 'mh-num-3-5-2',
+    input: { method: 'number' as const, num1: 3, num2: 5, num3: 2 },
+    expect: {
+      ben: '火风鼎',
+      dongYao: 2,
+      relation: '用生体',
+      yingPace: '近',
+      yingCount: 2,
+    },
+  },
+  {
+    id: 'mh-time-20240615',
+    input: { method: 'time' as const, date: '2024-06-15', clock: '12:00' },
+    expect: {
+      ben: '雷火丰',
+      dongYao: 3,
+      relation: '体生用',
+      yingPace: '远',
+      yingCount: 3,
+    },
+  },
+] as const

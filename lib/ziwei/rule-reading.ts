@@ -5,7 +5,7 @@
 import { BRANCHES, STEMS } from './constants'
 import type { Pattern } from './patterns'
 import type { ZiweiChart } from './types'
-import { buildOverlay, formatOverlaySummary } from './overlay'
+import { buildOverlay, formatOverlaySummary, type ZiweiSchool } from './overlay'
 
 function majorsOf(chart: ZiweiChart, palaceName: string): string {
   const p = chart.palaces.find((x) => x.name === palaceName)
@@ -25,11 +25,12 @@ function majorsOf(chart: ZiweiChart, palaceName: string): string {
 export function buildZiweiRuleReading(
   chart: ZiweiChart,
   patterns: Pattern[],
-  opts?: { year?: number },
+  opts?: { year?: number; school?: ZiweiSchool },
 ): string {
   const g = chart.birthInfo.gender === 'male' ? '乾造' : '坤造'
   const year = opts?.year ?? new Date().getFullYear()
-  const overlay = buildOverlay(chart, year)
+  const school: ZiweiSchool = opts?.school === 'feixing' ? 'feixing' : 'ni'
+  const overlay = buildOverlay(chart, year, { school })
   const lines: string[] = []
 
   lines.push('## 命盘总览（规则事实）')
@@ -39,6 +40,7 @@ export function buildZiweiRuleReading(
   lines.push(
     `- 公历 ${chart.birthInfo.year}-${chart.birthInfo.month}-${chart.birthInfo.day} · 农历 ${chart.lunarInfo.lunarYear}年${chart.lunarInfo.isLeapMonth ? '闰' : ''}${chart.lunarInfo.lunarMonth}月${chart.lunarInfo.lunarDay}日`,
   )
+  lines.push(`- 流派口径：${school === 'feixing' ? '飞星（大限宫干四化/自化可启用）' : '倪师（大限看宫位，不另飞大限四化）'}`)
   lines.push(`- 命宫主星：${majorsOf(chart, '命宫')}`)
   lines.push(`- 身宫所在：${chart.palaces.find((p) => p.isShenGong)?.name || '—'}`)
 
@@ -62,14 +64,30 @@ export function buildZiweiRuleReading(
   lines.push('## 当前运限')
   lines.push(`- ${formatOverlaySummary(overlay)}`)
   if (overlay.daXianName) {
-    lines.push(
-      `- 大限宫主星：${majorsOf(chart, overlay.daXianName)}（只论宫位星曜，不另飞大限四化）`,
-    )
+    if (school === 'feixing' && overlay.daXianSiHua) {
+      const d = overlay.daXianSiHua.transforms
+      lines.push(`- 大限宫主星：${majorsOf(chart, overlay.daXianName)}`)
+      lines.push(
+        `- 大限四化（宫干${overlay.daXianSiHua.stemName}）：禄${d.禄} 权${d.权} 科${d.科} 忌${d.忌}`,
+      )
+      if (overlay.selfSihuaPalaceCount != null) {
+        lines.push(`- 本命盘自化宫位数：${overlay.selfSihuaPalaceCount}`)
+      }
+    } else {
+      lines.push(
+        `- 大限宫主星：${majorsOf(chart, overlay.daXianName)}（只论宫位星曜，不另飞大限四化）`,
+      )
+    }
   }
 
   lines.push('')
   lines.push('## 解读边界')
   lines.push('- 以上星位、格局、运限均为算法输出，润色时不得改动或新增星曜。')
+  lines.push(
+    school === 'feixing'
+      ? '- 飞星口径已输出大限宫干四化；来因宫细断仍建议人工复核。'
+      : '- 默认倪师口径：不使用宫干自化、大限四化作主断；可传 ziweiSchool=feixing 切换。',
+  )
   lines.push('- 语气宜克制正向，不作恐吓式断言。')
 
   return lines.join('\n')

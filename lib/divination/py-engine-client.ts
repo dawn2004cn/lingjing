@@ -63,6 +63,48 @@ export function formatSidecarMarkdown(
   return lines.join('\n')
 }
 
+/** 从 kinjinkou 旁证文本中启发式抽取四位关键词，与 JS 课式对照 */
+export function compareJinkouSidecar(
+  chart: {
+    difen?: string
+    jiangShen?: { zhi?: string }
+    guiShen?: { name?: string }
+    renYuan?: { gan?: string }
+  },
+  sidecar: unknown,
+): { align: 'match' | 'partial' | 'diff' | 'stub' | 'unknown'; lines: string[] } {
+  if (!sidecar || typeof sidecar !== 'object') {
+    return { align: 'unknown', lines: ['旁证为空，无法对照'] }
+  }
+  const s = sidecar as Record<string, unknown>
+  if (s.ok === false || String(s.engine || '') === 'stub') {
+    return { align: 'stub', lines: ['kinjinkou 未安装或失败，仅保留 JS 自研四位'] }
+  }
+  const blob = `${typeof s.text === 'string' ? s.text : ''} ${
+    typeof s.data === 'string' ? s.data : JSON.stringify(s.data ?? '')
+  }`
+  const keys = [
+    chart.difen,
+    chart.jiangShen?.zhi,
+    chart.guiShen?.name,
+    chart.renYuan?.gan,
+  ].filter(Boolean) as string[]
+  const hits = keys.filter((k) => blob.includes(k)).length
+  let align: 'match' | 'partial' | 'diff' | 'unknown' = 'unknown'
+  if (keys.length) {
+    if (hits === keys.length) align = 'match'
+    else if (hits >= 1) align = 'partial'
+    else align = 'diff'
+  }
+  return {
+    align,
+    lines: [
+      `JS 四位：人元${chart.renYuan?.gan || '—'} 贵神${chart.guiShen?.name || '—'} 将神${chart.jiangShen?.zhi || '—'} 地分${chart.difen || '—'}`,
+      `旁证文本命中关键字段 ${hits}/${keys.length} → 对齐=${align}（启发式）`,
+    ],
+  }
+}
+
 /** 从 kinliuren 旁证文本/JSON 中启发式抽取三传，与 JS 课式对照 */
 export function compareDaliurenSidecar(
   chart: {
@@ -173,10 +215,19 @@ export async function enrichWithPyEngine(
       difen: typeof chart.difen === 'string' ? chart.difen : undefined,
     })
     if (!data) return null
+    const compare = compareJinkouSidecar(
+      {
+        difen: typeof chart.difen === 'string' ? chart.difen : undefined,
+        jiangShen: chart.jiangShen as { zhi?: string } | undefined,
+        guiShen: chart.guiShen as { name?: string } | undefined,
+        renYuan: chart.renYuan as { gan?: string } | undefined,
+      },
+      data,
+    )
     return {
-      sidecar: data,
+      sidecar: { ...(typeof data === 'object' && data ? data : { raw: data }), compare },
       note: data.ok
-        ? '已并入 py-engine/kinjinkou 旁证'
+        ? `已并入 py-engine/kinjinkou 旁证（四位启发式对齐=${compare.align}）`
         : 'py-engine 未装 kinjinkou，仍以 JS 自研为准',
     }
   }

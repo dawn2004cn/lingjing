@@ -17,14 +17,15 @@ export const ziweiAdapter: DivinationAdapter = {
     category: 'mingli',
     blurb: '十二宫命盘 · 格局 · 大限流年',
     engine: 'iztro + 十四主星完整性旁证',
-    defaultMethod: '早子=0 / 晚子=12；历法旁证共用日柱流派',
+    defaultMethod: '早子=0 / 晚子=12；默认倪师口径，可切飞星',
     href: '/',
     available: true,
   },
   build(input: DivinationBuildInput): DivinationBuildResult {
     const birth = input as unknown as FormBirthInput
     const { chart, patterns, trueSolar, timeIndex } = buildChartWithPatterns(birth)
-    let ruleReading = buildZiweiRuleReading(chart, patterns)
+    const school = birth.ziweiSchool === 'feixing' ? 'feixing' : 'ni'
+    let ruleReading = buildZiweiRuleReading(chart, patterns, { school })
     let promptText = formatChartForPrompt(chart, patterns, { trueSolar, timeIndex })
     const integrity = auditZiweiChartIntegrity(chart, {
       expectSolar: chart.birthInfo
@@ -36,11 +37,12 @@ export const ziweiAdapter: DivinationAdapter = {
     promptText += `\n\n${integText}`
     return {
       system: 'ziwei',
-      chart: { chart, patterns, trueSolar, timeIndex },
+      chart: { chart, patterns, trueSolar, timeIndex, school },
       ruleReading,
       promptText,
       allowedTerms: [...collectZiweiAllowedTerms(chart, patterns)],
       integrity,
+      meta: { ziweiSchool: school },
     }
   },
 }

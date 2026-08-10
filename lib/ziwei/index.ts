@@ -46,6 +46,8 @@ export interface FormBirthInput {
   longitude?: number
   /** 八字旁证日柱流派（紫微主盘不受影响） */
   daySect?: 1 | 2
+  /** 紫微运限口径：ni=倪师（默认）；feixing=飞星（大限宫干四化） */
+  ziweiSchool?: 'ni' | 'feixing'
 }
 
 export interface ChartBuildResult {
