@@ -1,7 +1,7 @@
 import { getAdapter, isValidSystemId, listSystems } from '@/lib/divination/registry'
 import { enrichWithPyEngine, formatSidecarMarkdown, compareDaliurenSidecar, compareJinkouSidecar } from '@/lib/divination/py-engine-client'
 import OpenAI from 'openai'
-import { citationRiskScore } from '@/lib/astro/citation-guard'
+import { citationRiskScore, buildZiweiCitationFacts, buildBaziCitationFacts } from '@/lib/astro/citation-guard'
 import { normalizeMarkdown } from '@/lib/markdown/normalize'
 import { logAccuracyEvent } from '@/lib/astro/accuracy-events'
 import { getAuthUser } from '@/lib/auth'
@@ -120,7 +120,13 @@ export async function POST(request, context) {
       polished = false
     } else {
       result = normalizeMarkdown(result)
-      const risk = citationRiskScore(result, new Set(built.allowedTerms))
+      const facts =
+        system === 'ziwei' && built.chart?.chart
+          ? buildZiweiCitationFacts(built.chart.chart)
+          : system === 'bazi' && built.chart
+            ? buildBaziCitationFacts(built.chart)
+            : null
+      const risk = citationRiskScore(result, new Set(built.allowedTerms), facts)
       logAccuracyEvent({
         kind: 'citation',
         system,

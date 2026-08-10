@@ -44,7 +44,7 @@ import {
 import { probeJieQiBoundary, formatJieQiForPrompt } from '../lib/astro/jieqi-boundary'
 import { auditMonthJieQiYear } from '../lib/astro/jieqi-year-audit'
 import { computePrecisionFlags, birthInputFromRecord } from '../lib/astro/precision-flags'
-import { citationRiskScore } from '../lib/astro/citation-guard'
+import { citationRiskScore, extractStarPalaceClaims, buildZiweiCitationFacts, buildBaziCitationFacts } from '../lib/astro/citation-guard'
 import { buildNatalLaiYin } from '../lib/ziwei/overlay'
 import { Lunar } from 'lunar-javascript'
 
@@ -1036,6 +1036,30 @@ console.log('\n=== 20. 占卜集大成适配器冒烟 ===')
   const badCite = citationRiskScore('田宅宫有贪狼，另见子丑', new Set(['命宫', '紫微']))
   assert('宫位幻觉加权', badCite.score >= 2, String(badCite.score))
   assert('宫位幻觉列入', (badCite.breakdown?.palaces || []).length >= 1)
+
+  const claims = extractStarPalaceClaims('紫微在命宫，财帛宫有贪狼')
+  assert('抽取星宫断言', claims.length >= 2, String(claims.length))
+  const factsFake = {
+    system: 'ziwei',
+    starPalaces: { 紫微: ['命宫', '命'], 贪狼: ['官禄宫', '官禄'] },
+  }
+  const relBad = citationRiskScore('贪狼在财帛宫', new Set(['贪狼', '财帛宫', '官禄宫']), factsFake)
+  assert('语义错位高分', relBad.score >= 3, String(relBad.score))
+  assert('语义错位列入', (relBad.breakdown?.relations || []).length >= 1)
+  const relOk = citationRiskScore('紫微在命宫', new Set(['紫微', '命宫']), factsFake)
+  assert('语义正位低分', relOk.score === 0, String(relOk.score))
+
+  const baziFacts = buildBaziCitationFacts({
+    dayMaster: '甲',
+    pillars: { year: { ganZhi: '甲子' }, day: { ganZhi: '甲寅' } },
+  })
+  const baziBad = citationRiskScore('日主乙，日柱甲子', new Set(['甲', '乙', '甲子', '甲寅']), baziFacts)
+  assert('八字日主错位', baziBad.score >= 3, String(baziBad.score))
+
+  if (flyChart) {
+    const zf = buildZiweiCitationFacts(flyChart)
+    assert('事实索引有星', Object.keys(zf.starPalaces || {}).length >= 10)
+  }
 }
 
 console.log('\n=== 21b. 会员档位元数据 ===')

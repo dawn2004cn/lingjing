@@ -7,7 +7,7 @@ import { buildZiweiRuleReading, collectZiweiAllowedTerms } from '@/lib/ziwei/rul
 import { buildBaziChart, formatBaziForPrompt } from '@/lib/bazi/engine'
 import { buildBaziRuleReading, collectBaziAllowedTerms } from '@/lib/bazi/rule-reading'
 import { detectZipingPatterns, formatZipingForPrompt } from '@/lib/bazi/ziping'
-import { citationRiskScore } from '@/lib/astro/citation-guard'
+import { citationRiskScore, buildZiweiCitationFacts, buildBaziCitationFacts } from '@/lib/astro/citation-guard'
 import { normalizeMarkdown } from '@/lib/markdown/normalize'
 import { buildDualBoundary, formatDualForPrompt } from '@/lib/astro/dual-boundary'
 import {
@@ -147,6 +147,7 @@ export async function POST(request) {
     let crossCheck = null
     let jieQiBoundary = null
     let integrity = null
+    let citationFacts = null
 
     const dual = buildDualBoundary(birth, isZiwei ? 'ziwei' : 'bazi')
     if (dual) {
@@ -171,6 +172,7 @@ export async function POST(request) {
         chartText = formatChartForPrompt(chart, patterns, { trueSolar, timeIndex })
       }
       ruleReading = buildZiweiRuleReading(chart, patterns, { school })
+      citationFacts = buildZiweiCitationFacts(chart)
       if (dual?.applicable) {
         const dualText = formatDualForPrompt(dual)
         ruleReading += `\n\n${dualText}`
@@ -209,6 +211,7 @@ export async function POST(request) {
       baziChart = buildBaziChart(birth)
       chartText = formatBaziForPrompt(baziChart)
       ruleReading = buildBaziRuleReading(baziChart)
+      citationFacts = buildBaziCitationFacts(baziChart)
       const ziping = detectZipingPatterns(baziChart)
       const zipText = formatZipingForPrompt(ziping)
       ruleReading += `\n\n${zipText}`
@@ -326,7 +329,7 @@ ${chartText}
       polished = false
     } else {
       result = normalizeMarkdown(result)
-      const risk = citationRiskScore(result, allowed)
+      const risk = citationRiskScore(result, allowed, citationFacts)
       const fellBack = risk.score >= 3
       logAccuracyEvent({
         kind: 'citation',

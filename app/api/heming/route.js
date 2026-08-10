@@ -5,7 +5,7 @@ import {
   formatHemingMatrixForPrompt,
 } from '@/lib/ziwei/heming-matrix'
 import { normalizeMarkdown } from '@/lib/markdown/normalize'
-import { citationRiskScore } from '@/lib/astro/citation-guard'
+import { citationRiskScore, buildZiweiCitationFacts } from '@/lib/astro/citation-guard'
 import { logAccuracyEvent } from '@/lib/astro/accuracy-events'
 import { collectZiweiAllowedTerms } from '@/lib/ziwei/rule-reading'
 import {
@@ -61,6 +61,17 @@ export async function POST(request) {
       ...collectZiweiAllowedTerms(chartA, []),
       ...collectZiweiAllowedTerms(chartB, []),
     ])
+    const fa = buildZiweiCitationFacts(chartA)
+    const fb = buildZiweiCitationFacts(chartB)
+    const citationFacts = {
+      system: 'ziwei',
+      starPalaces: { ...(fa.starPalaces || {}) },
+    }
+    for (const [star, places] of Object.entries(fb.starPalaces || {})) {
+      citationFacts.starPalaces[star] = [
+        ...new Set([...(citationFacts.starPalaces[star] || []), ...places]),
+      ]
+    }
 
     let crossCheckA = null
     let crossCheckB = null
@@ -119,7 +130,7 @@ export async function POST(request) {
     }
 
     result = normalizeMarkdown(result)
-    const risk = citationRiskScore(result, allowed)
+    const risk = citationRiskScore(result, allowed, citationFacts)
     const fellBack = risk.score >= 4
     logAccuracyEvent({
       kind: 'citation',
