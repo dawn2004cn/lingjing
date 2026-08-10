@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth } from '../components/AuthContext'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -15,7 +15,22 @@ export default function ProfilePage() {
   const [err, setErr] = useState('')
   const [saving, setSaving] = useState(false)
   const [redeeming, setRedeeming] = useState(false)
+  const [checkout, setCheckout] = useState(null)
+  const [pendingOrder, setPendingOrder] = useState(null)
+  const [buying, setBuying] = useState(false)
   const router = useRouter()
+
+  useEffect(() => {
+    if (!user || user.role === 'admin' || user.plan === 'pro') return
+    fetch('/api/plan/checkout')
+      .then((r) => r.json())
+      .then((d) => {
+        setCheckout(d)
+        const pend = (d.orders || []).find((o) => o.status === 'pending')
+        if (pend) setPendingOrder(pend)
+      })
+      .catch(() => {})
+  }, [user])
 
   if (loading) return null
   if (!user) { router.push('/login'); return null }
@@ -57,6 +72,40 @@ export default function ProfilePage() {
     } catch (e) { setErr(e.message) } finally { setRedeeming(false) }
   }
 
+  const createOrder = async () => {
+    setMsg(''); setErr('')
+    setBuying(true)
+    try {
+      const res = await fetch('/api/plan/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create' }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error || '下单失败')
+      setPendingOrder(d.order)
+      setMsg(d.hint || '订单已创建')
+    } catch (e) { setErr(e.message) } finally { setBuying(false) }
+  }
+
+  const confirmPay = async () => {
+    if (!pendingOrder) return
+    setMsg(''); setErr('')
+    setBuying(true)
+    try {
+      const res = await fetch('/api/plan/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'confirm', orderId: pendingOrder.id }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error || '支付失败')
+      setMsg(d.message || '已开通专业档')
+      setPendingOrder(null)
+      if (typeof refetch === 'function') await refetch()
+    } catch (e) { setErr(e.message) } finally { setBuying(false) }
+  }
+
   return (
     <div className="page-shell flex min-h-screen items-center justify-center px-4 py-16">
       <div className="card p-8 w-full max-w-sm animate-slide-up">
@@ -85,28 +134,66 @@ export default function ProfilePage() {
                 : `已用 ${user.quota.used} / ${user.quota.dailyLimit}（剩余 ${user.quota.remaining}）`}
             </p>
             <p className="mt-1 text-[rgba(245,234,210,0.4)]">
-              排盘与规则事实不限额；AI 润色/追问计入额度。可用兑换码升级专业档。
+              排盘与规则事实不限额；AI 润色/追问计入额度。
             </p>
           </div>
         )}
 
         {user.role !== 'admin' && user.plan !== 'pro' && (
-          <form onSubmit={submitRedeem} className="mb-6 space-y-3">
-            <div className="input-field">
-              <label className="input-label">专业档兑换码</label>
-              <input
-                type="text"
-                className="input-base"
-                value={redeem}
-                onChange={(e) => setRedeem(e.target.value)}
-                placeholder="LJ-XXXX-XXXX"
-                autoComplete="off"
-              />
+          <div className="mb-6 space-y-4">
+            <div className="rounded-lg border border-[var(--line)] px-3 py-3 space-y-2">
+              <p className="text-[10px] tracking-[0.14em] text-[var(--gold-bright)]">升级专业档</p>
+              <p className="text-[11px] text-[rgba(245,234,210,0.55)]">
+                标价 ¥{checkout?.priceYuan || '99.00'}
+                {checkout?.mockPayAllowed !== false
+                  ? ' · 当前为演示支付（不真实扣款）'
+                  : ' · 演示支付已关，请用兑换码'}
+              </p>
+              {!pendingOrder ? (
+                <button
+                  type="button"
+                  className="btn-primary"
+                  disabled={buying}
+                  onClick={createOrder}
+                >
+                  {buying ? '创建中...' : '创建专业档订单'}
+                </button>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-[11px] text-[rgba(245,234,210,0.65)] font-mono">
+                    {pendingOrder.orderNo} · ¥{pendingOrder.amountYuan}
+                  </p>
+                  {checkout?.mockPayAllowed !== false && (
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      disabled={buying}
+                      onClick={confirmPay}
+                    >
+                      {buying ? '确认中...' : '演示支付并开通'}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
-            <button type="submit" disabled={redeeming} className="btn-primary">
-              {redeeming ? '兑换中...' : '兑换升级'}
-            </button>
-          </form>
+
+            <form onSubmit={submitRedeem} className="space-y-3">
+              <div className="input-field">
+                <label className="input-label">或使用兑换码</label>
+                <input
+                  type="text"
+                  className="input-base"
+                  value={redeem}
+                  onChange={(e) => setRedeem(e.target.value)}
+                  placeholder="LJ-XXXX-XXXX"
+                  autoComplete="off"
+                />
+              </div>
+              <button type="submit" disabled={redeeming} className="btn-primary">
+                {redeeming ? '兑换中...' : '兑换升级'}
+              </button>
+            </form>
+          </div>
         )}
 
         <div className="mb-6 h-px bg-[var(--line)]" />

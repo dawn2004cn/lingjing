@@ -1084,6 +1084,16 @@ console.log('\n=== 21c. 兑换码格式 ===')
   assert('format 展示', formatRedeemCode('LJABCD1234') === 'LJ-ABCD-1234')
 }
 
+console.log('\n=== 21d. 订单号与标价 ===')
+{
+  const { mintOrderNo, formatAmountYuan, getProPriceFen, mockPayAllowed } = require('../lib/checkout')
+  const no = mintOrderNo()
+  assert('订单号 LJ 前缀', no.startsWith('LJ') && no.length >= 14, no)
+  assert('金额格式', formatAmountYuan(9900) === '99.00')
+  assert('标价为正', getProPriceFen() > 0)
+  assert('mockPay 布尔', typeof mockPayAllowed() === 'boolean')
+}
+
 console.log('\n=== 21. 大六壬九宗门简判 + 原典/笔画 ===')
 {
   // 贼克：唯一下克上

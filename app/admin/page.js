@@ -13,7 +13,9 @@ export default function AdminPage() {
   const [users, setUsers] = useState(null)
   const [showUsers, setShowUsers] = useState(false)
   const [showCodes, setShowCodes] = useState(false)
+  const [showOrders, setShowOrders] = useState(false)
   const [codes, setCodes] = useState(null)
+  const [orders, setOrders] = useState(null)
   const [mintCount, setMintCount] = useState(1)
   const [mintNote, setMintNote] = useState('')
   const [mintedFlash, setMintedFlash] = useState([])
@@ -169,14 +171,32 @@ export default function AdminPage() {
 
   const openUsers = async () => {
     setShowCodes(false)
+    setShowOrders(false)
     setShowUsers(true)
     fetchUsers()
   }
 
   const openCodes = async () => {
     setShowUsers(false)
+    setShowOrders(false)
     setShowCodes(true)
     fetchCodes()
+  }
+
+  const fetchOrders = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/orders')
+      if (!res.ok) throw new Error('获取订单失败')
+      const d = await res.json()
+      setOrders(d.orders)
+    } catch (e) { setError(e.message) }
+  }, [])
+
+  const openOrders = async () => {
+    setShowUsers(false)
+    setShowCodes(false)
+    setShowOrders(true)
+    fetchOrders()
   }
 
   if (loading || !user) return null
@@ -207,7 +227,7 @@ export default function AdminPage() {
           </div>
         )}
 
-        {data && !showUsers && !showCodes && (
+        {data && !showUsers && !showCodes && !showOrders && (
           <>
             {/* Stats Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -254,6 +274,20 @@ export default function AdminPage() {
               </div>
               <div className="stat-value text-base">生成 / 停用</div>
               <p className="text-xs text-[rgba(245,234,210,0.4)] mt-1">支付网关前可运营：发码 → 用户在个人设置兑换</p>
+            </button>
+
+            <button onClick={openOrders} className="card p-5 mb-8 animate-slide-up w-full text-left cursor-pointer hover:border-[var(--gold-bright)]/40 transition-all">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-lg">💳</span>
+                  <span className="stat-label">专业档订单</span>
+                </div>
+                <svg className="w-4 h-4 text-[rgba(245,234,210,0.35)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12h15m0 0l-6.75-6.75M19.5 12l-6.75 6.75" />
+                </svg>
+              </div>
+              <div className="stat-value text-base">订单列表</div>
+              <p className="text-xs text-[rgba(245,234,210,0.4)] mt-1">含演示支付记录；正式通道可替换 provider</p>
             </button>
 
             {data.accuracy && (data.accuracy.needsBackfill > 0 || data.accuracy.crossMismatch > 0 || data.accuracy.crossPartial > 0) && (
@@ -696,7 +730,65 @@ export default function AdminPage() {
           </div>
         )}
 
-        {!data && !error && !showUsers && !showCodes && (
+        {showOrders && (
+          <div className="animate-slide-up">
+            <div className="flex items-center gap-3 mb-6">
+              <button
+                onClick={() => setShowOrders(false)}
+                className="text-[rgba(245,234,210,0.55)] hover:text-[#fff6e2] transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <h2 className="text-[#fff6e2] text-lg font-semibold tracking-tight">专业档订单</h2>
+              <button onClick={fetchOrders} className="btn-ghost !text-xs ml-auto">刷新</button>
+            </div>
+            {!orders ? (
+              <div className="flex items-center justify-center py-20">
+                <p className="text-xs text-[rgba(245,234,210,0.5)] tracking-[0.18em]">加载中...</p>
+              </div>
+            ) : (
+              <div className="card overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-[var(--line)]">
+                        <th className="text-left py-3 px-4 text-[rgba(245,234,210,0.55)] font-medium">订单号</th>
+                        <th className="text-left py-3 px-4 text-[rgba(245,234,210,0.55)] font-medium">用户</th>
+                        <th className="text-left py-3 px-4 text-[rgba(245,234,210,0.55)] font-medium">金额</th>
+                        <th className="text-left py-3 px-4 text-[rgba(245,234,210,0.55)] font-medium">状态</th>
+                        <th className="text-left py-3 px-4 text-[rgba(245,234,210,0.55)] font-medium">通道</th>
+                        <th className="text-left py-3 px-4 text-[rgba(245,234,210,0.55)] font-medium">时间</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {orders.map((o, i) => (
+                        <tr key={o.id} className={i % 2 === 0 ? '' : 'bg-[rgba(245,234,210,0.02)]'}>
+                          <td className="py-2.5 px-4 text-[#fff6e2] font-mono text-[10px]">{o.orderNo}</td>
+                          <td className="py-2.5 px-4 text-[rgba(247,236,215,0.7)]">{o.username || o.userId}</td>
+                          <td className="py-2.5 px-4 text-[rgba(247,236,215,0.7)]">¥{o.amountYuan}</td>
+                          <td className="py-2.5 px-4 text-[rgba(247,236,215,0.7)]">{o.status}</td>
+                          <td className="py-2.5 px-4 text-[rgba(245,234,210,0.45)]">{o.provider}</td>
+                          <td className="py-2.5 px-4 text-[rgba(245,234,210,0.45)] whitespace-nowrap">
+                            {(o.paidAt || o.createdAt || '').replace('T', ' ').slice(0, 16)}
+                          </td>
+                        </tr>
+                      ))}
+                      {orders.length === 0 && (
+                        <tr>
+                          <td colSpan={6} className="py-8 text-center text-[rgba(245,234,210,0.4)]">暂无订单</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {!data && !error && !showUsers && !showCodes && !showOrders && (
           <div className="flex items-center justify-center py-20">
             <p className="text-xs text-[rgba(245,234,210,0.5)] tracking-[0.18em]">加载中...</p>
           </div>
