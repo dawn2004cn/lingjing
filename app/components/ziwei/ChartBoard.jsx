@@ -25,14 +25,15 @@ function getSanFangSiZheng(branch) {
   ]
 }
 
-export default function ChartBoard({ chart, patterns = [] }) {
+export default function ChartBoard({ chart, patterns = [], school = 'ni' }) {
   const [selectedBranch, setSelectedBranch] = useState(null)
   const birthYear = chart?.birthInfo?.year || 1990
   const [year, setYear] = useState(() => new Date().getFullYear())
+  const ziweiSchool = school === 'feixing' ? 'feixing' : 'ni'
 
   const overlay = useMemo(
-    () => (chart ? buildOverlay(chart, year) : null),
-    [chart, year],
+    () => (chart ? buildOverlay(chart, year, { school: ziweiSchool }) : null),
+    [chart, year, ziweiSchool],
   )
 
   if (!chart?.palaces?.length) return null
@@ -59,6 +60,9 @@ export default function ChartBoard({ chart, patterns = [] }) {
           <div>{chart.wuxingJuName}</div>
           <div className="mt-0.5">
             命{BRANCHES[chart.mingGongBranch]} · 身{BRANCHES[chart.shenGongBranch]}
+          </div>
+          <div className="mt-0.5 text-[var(--gold-bright)]">
+            {ziweiSchool === 'feixing' ? '飞星口径' : '倪师口径'}
           </div>
         </div>
       </div>
@@ -185,6 +189,46 @@ export default function ChartBoard({ chart, patterns = [] }) {
           ))}
           <span>限=大限宫 · 年=流年命宫位 · 流X=流年四化落本命星</span>
         </div>
+
+        {ziweiSchool === 'feixing' && overlay && (
+          <div className="mt-4 pt-4 border-t border-[var(--line)] space-y-2">
+            <p className="text-xs tracking-[0.14em] text-[var(--gold-bright)]">飞星 · 来因 / 自化</p>
+            {overlay.laiYin?.length > 0 && (
+              <div className="text-[11px] text-[rgba(245,234,210,0.7)] space-y-1">
+                {overlay.laiYin.map((e) => (
+                  <p key={`${e.siHua}-${e.starName}`}>
+                    <span className="text-[rgba(245,234,210,0.45)]">{e.starName}化{e.siHua}</span>
+                    {' ← '}
+                    {e.from.length ? e.from.join('、') : '未命中宫干'}
+                    {e.siHua === '忌' ? '（化忌来因重点）' : ''}
+                  </p>
+                ))}
+              </div>
+            )}
+            {overlay.selfSihua?.length > 0 ? (
+              <div className="flex flex-wrap gap-2 text-[11px]">
+                {overlay.selfSihua.map((p) => (
+                  <span
+                    key={p.palaceName}
+                    className="rounded-md border border-[var(--line)] px-2 py-1 text-[rgba(245,234,210,0.65)]"
+                  >
+                    {p.palaceName}：
+                    {p.items.map((i) => `自化${i.siHua}${i.starName}`).join('、')}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[11px] text-[rgba(245,234,210,0.4)]">本盘无宫干自化命中</p>
+            )}
+            {overlay.daXianSiHua && (
+              <p className="text-[11px] text-[rgba(245,234,210,0.55)]">
+                大限四化（宫干{overlay.daXianSiHua.stemName}）：禄{overlay.daXianSiHua.transforms.禄}
+                /权{overlay.daXianSiHua.transforms.权}/科{overlay.daXianSiHua.transforms.科}
+                /忌{overlay.daXianSiHua.transforms.忌}
+              </p>
+            )}
+          </div>
+        )}
 
         {patterns.length > 0 && (
           <div className="mt-4 pt-4 border-t border-[var(--line)]">

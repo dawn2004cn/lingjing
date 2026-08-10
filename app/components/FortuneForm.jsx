@@ -129,7 +129,7 @@ export default function FortuneForm({ formData, onChange, onSubmit, loading }) {
             ))}
           </div>
           <p className="mt-2 text-[11px] leading-relaxed text-[rgba(245,234,210,0.45)]">
-            飞星会输出大限宫干四化与自化宫位数；来因宫细断仍建议人工复核。
+            飞星会输出大限宫干四化、自化与本命四化来因宫；复杂飞化链仍建议人工复核。
           </p>
         </div>
       )}

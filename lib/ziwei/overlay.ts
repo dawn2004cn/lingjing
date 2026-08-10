@@ -9,10 +9,45 @@ import {
   getLiuNianSiHua,
   getYearBranchIndex,
   buildAllSelfSihua,
+  getSiHuaByStem,
+  findIncomingPalaces,
 } from './sihua'
 import type { SiHua, ZiweiChart } from './types'
+import { STEMS } from './constants'
 
 export type ZiweiSchool = 'ni' | 'feixing'
+
+/** 本命年干四化 → 来因宫（宫干引发该化的宫位） */
+export function buildNatalLaiYin(
+  chart: ZiweiChart,
+): { siHua: SiHua; starName: string; from: string[] }[] {
+  const stem = chart.lunarInfo?.yearStem ?? 0
+  const transforms = getSiHuaByStem(stem)
+  return (['禄', '权', '科', '忌'] as SiHua[])
+    .map((siHua) => {
+      const starName = transforms[siHua]
+      if (!starName) return null
+      const from = findIncomingPalaces(chart, starName, siHua).map((p) => p.name)
+      return { siHua, starName, from }
+    })
+    .filter(Boolean) as { siHua: SiHua; starName: string; from: string[] }[]
+}
+
+export function formatLaiYinLine(
+  entries: { siHua: SiHua; starName: string; from: string[] }[],
+): string {
+  return entries
+    .map((e) => {
+      const src = e.from.length ? e.from.join('、') : '未命中宫干'
+      return `${e.starName}化${e.siHua}←${src}`
+    })
+    .join('；')
+}
+
+export function natalYearStemName(chart: ZiweiChart): string {
+  const i = chart.lunarInfo?.yearStem ?? 0
+  return STEMS[i] || '—'
+}
 
 export interface OverlayState {
   year: number
@@ -36,6 +71,10 @@ export interface OverlayState {
   } | null
   /** 仅飞星口径：有自化的宫位数 */
   selfSihuaPalaceCount?: number
+  /** 仅飞星口径：自化明细（宫名 → 自化列表） */
+  selfSihua?: { palaceName: string; items: { siHua: SiHua; starName: string }[] }[]
+  /** 仅飞星口径：本命年干四化之来因宫 */
+  laiYin?: { siHua: SiHua; starName: string; from: string[] }[]
 }
 
 export function buildOverlay(
@@ -64,6 +103,16 @@ export function buildOverlay(
   const daXianSiHua =
     school === 'feixing' && daXianIndex >= 0 ? getDaXianSiHua(chart, daXianIndex) : null
   const selfMap = school === 'feixing' ? buildAllSelfSihua(chart) : null
+  const selfSihua =
+    school === 'feixing' && selfMap
+      ? chart.palaces
+          .filter((p) => selfMap[p.branch]?.length)
+          .map((p) => ({
+            palaceName: p.name,
+            items: selfMap[p.branch].map((x) => ({ siHua: x.siHua, starName: x.starName })),
+          }))
+      : undefined
+  const laiYin = school === 'feixing' ? buildNatalLaiYin(chart) : undefined
 
   return {
     year,
@@ -78,6 +127,8 @@ export function buildOverlay(
     school,
     daXianSiHua: daXianSiHua || null,
     selfSihuaPalaceCount: selfMap ? Object.keys(selfMap).length : undefined,
+    selfSihua,
+    laiYin,
   }
 }
 
@@ -95,6 +146,12 @@ export function formatOverlaySummary(o: OverlayState): string {
     parts.push(
       `大限四化（宫干${o.daXianSiHua.stemName}）：禄${d.禄} 权${d.权} 科${d.科} 忌${d.忌}`,
     )
+  }
+  if (o.school === 'feixing' && o.laiYin?.length) {
+    const ji = o.laiYin.find((x) => x.siHua === '忌')
+    if (ji) {
+      parts.push(`化忌来因：${ji.from.length ? ji.from.join('、') : '—'}`)
+    }
   }
   return parts.join(' · ')
 }

@@ -44,6 +44,8 @@ import {
 import { probeJieQiBoundary, formatJieQiForPrompt } from '../lib/astro/jieqi-boundary'
 import { auditMonthJieQiYear } from '../lib/astro/jieqi-year-audit'
 import { computePrecisionFlags, birthInputFromRecord } from '../lib/astro/precision-flags'
+import { citationRiskScore } from '../lib/astro/citation-guard'
+import { buildNatalLaiYin } from '../lib/ziwei/overlay'
 import { Lunar } from 'lunar-javascript'
 
 let failed = 0
@@ -1021,6 +1023,19 @@ console.log('\n=== 20. 占卜集大成适配器冒烟 ===')
   assert('飞星规则含飞星字样', zwFly.ruleReading.includes('飞星'))
   assert('倪师标明不另飞四化', zw.ruleReading.includes('不另飞'))
   assert('倪师无宫干四化行', !zw.ruleReading.includes('大限四化（宫干'))
+  assert('飞星规则含来因', zwFly.ruleReading.includes('来因'))
+  const flyChart = (zwFly.chart as any)?.chart
+  if (flyChart) {
+    const ly = buildNatalLaiYin(flyChart)
+    assert('来因宫条目为4', ly.length === 4, String(ly.length))
+    assert('化忌来因有星名', !!ly.find((x) => x.siHua === '忌')?.starName)
+  }
+
+  const okCite = citationRiskScore('命宫紫微在庙，夫妻宫无化忌', new Set(['命宫', '紫微', '夫妻宫']))
+  assert('合法引用低分', okCite.score === 0, String(okCite.score))
+  const badCite = citationRiskScore('田宅宫有贪狼，另见子丑', new Set(['命宫', '紫微']))
+  assert('宫位幻觉加权', badCite.score >= 2, String(badCite.score))
+  assert('宫位幻觉列入', (badCite.breakdown?.palaces || []).length >= 1)
 }
 
 console.log('\n=== 21. 大六壬九宗门简判 + 原典/笔画 ===')

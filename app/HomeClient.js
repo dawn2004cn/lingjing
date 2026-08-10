@@ -351,7 +351,7 @@ export default function HomeClient() {
             {!isZiwei && baziMeta && <BaziPillarsCard meta={baziMeta} />}
 
             {isZiwei && chart && (
-              <ChartBoard chart={chart} patterns={patterns} />
+              <ChartBoard chart={chart} patterns={patterns} school={ziweiSchoolMeta} />
             )}
             {chartLoading && !chart ? (
               <div className="card mt-5">
