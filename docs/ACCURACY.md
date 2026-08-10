@@ -56,8 +56,9 @@ npm run test:astro
 
 ## 已知边界（相对「市面最强」）
 
-- 紫微尚无第二安星引擎交叉（以结构完整性 + 历法旁证替代）
+- 紫微尚无第二安星引擎交叉（完整性报告显式标记 `secondAnXingAvailable=false`；十二宫+十四主星+历法往返）
 - 奇门/大六壬已标 `requiresHumanReview`：排盘可复现，重大事项须人工复核并对照旁证
+- 大六壬可对照 py-engine/kinliuren：规则文附三传启发式对齐（match/partial/diff/stub）
 - 奇门主引擎与 MIT `qimendunjia-standalone` 旁证局数可能不一致（回归锁定两侧快照与 `juAlign`）
 - 六爻「时间起卦」为可复现伪随机，非古典求余法（UI/规则文案已标明）
 - 八字含扶抑喜用 + 月令调候简判；二者冲突时须人工权衡

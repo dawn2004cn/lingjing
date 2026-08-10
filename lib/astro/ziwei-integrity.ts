@@ -22,6 +22,10 @@ export interface ZiweiIntegrityReport {
   duplicateMajors: string[]
   mingConsistent: boolean
   calendarAligned: boolean | null
+  /** 十二宫是否齐全 */
+  palaceCount: number
+  /** 尚无第二安星引擎 */
+  secondAnXingAvailable: false
   notes: string[]
 }
 
@@ -85,8 +89,19 @@ export function auditZiweiChartIntegrity(
     }
   }
 
+  const palaceCount = (chart.palaces || []).length
+  if (palaceCount !== 12) notes.push(`宫位数 ${palaceCount}（期望 12）`)
+
+  notes.push('尚无第二安星引擎交叉；本报告为结构完整性 + 历法往返旁证')
+
   let status: ZiweiIntegrityStatus = 'ok'
-  if (missingMajors.length || duplicateMajors.length || !mingConsistent || majorCount !== 14) {
+  if (
+    missingMajors.length ||
+    duplicateMajors.length ||
+    !mingConsistent ||
+    majorCount !== 14 ||
+    palaceCount !== 12
+  ) {
     status = 'fail'
   } else if (calendarAligned === false) {
     status = 'warn'
@@ -94,7 +109,7 @@ export function auditZiweiChartIntegrity(
 
   const summary =
     status === 'ok'
-      ? '紫微盘面完整性通过（十四主星齐全、命宫自洽）'
+      ? '紫微盘面完整性通过（十四主星齐全、十二宫/命宫自洽；无第二安星交叉）'
       : status === 'warn'
         ? '紫微盘面结构通过，历法对照有告警'
         : '紫微盘面完整性未通过，请人工复核'
@@ -107,6 +122,8 @@ export function auditZiweiChartIntegrity(
     duplicateMajors,
     mingConsistent,
     calendarAligned,
+    palaceCount,
+    secondAnXingAvailable: false,
     notes,
   }
 }
@@ -116,9 +133,10 @@ export function formatZiweiIntegrityForPrompt(report: ZiweiIntegrityReport): str
     '## 紫微盘面完整性（算法事实）',
     `- 状态：${report.status}`,
     `- ${report.summary}`,
-    `- 十四主星计数：${report.majorCount}`,
+    `- 十四主星计数：${report.majorCount} · 十二宫：${report.palaceCount}`,
+    `- 第二安星引擎：${report.secondAnXingAvailable ? '已接入' : '未接入（仅结构/历法旁证）'}`,
   ]
-  for (const n of report.notes.slice(0, 6)) lines.push(`- ${n}`)
+  for (const n of report.notes.slice(0, 8)) lines.push(`- ${n}`)
   if (report.status === 'fail') {
     lines.push('- 警告：盘面结构异常，解读须标注待复核，不得假装确定。')
   }

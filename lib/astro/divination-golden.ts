@@ -119,3 +119,49 @@ export const BAZI_TIAOHOU_GOLDEN = [
     },
   },
 ] as const
+
+/** 大六壬课式锁定 */
+export const DALIUREN_GOLDEN = [
+  {
+    id: 'dlr-20240615-day',
+    input: { date: '2024-06-15', clock: '12:00', dayNight: 'day' as const },
+    expect: {
+      jieQi: '芒种',
+      yueJiang: '申',
+      guiRen: '丑',
+      xunKong: '寅卯',
+      chu: '子',
+      zhong: '寅',
+      mo: '辰',
+      methodIncludes: '比用',
+    },
+  },
+  {
+    id: 'dlr-20240105-day',
+    input: { date: '2024-01-05', clock: '10:00', dayNight: 'day' as const },
+    expect: {
+      jieQi: '冬至',
+      yueJiang: '丑',
+      guiRen: '丑',
+      xunKong: '戌亥',
+      chu: '子',
+      zhong: '申',
+      mo: '辰',
+      methodIncludes: '贼克',
+    },
+  },
+  {
+    id: 'dlr-20231222-night-bazhuan',
+    input: { date: '2023-12-22', clock: '08:00', dayNight: 'night' as const },
+    expect: {
+      jieQi: '冬至',
+      yueJiang: '丑',
+      guiRen: '未',
+      xunKong: '子丑',
+      chu: '丑',
+      zhong: '戌',
+      mo: '未',
+      methodIncludes: '八专',
+    },
+  },
+] as const

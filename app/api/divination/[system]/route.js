@@ -1,5 +1,5 @@
 import { getAdapter, isValidSystemId, listSystems } from '@/lib/divination/registry'
-import { enrichWithPyEngine, formatSidecarMarkdown } from '@/lib/divination/py-engine-client'
+import { enrichWithPyEngine, formatSidecarMarkdown, compareDaliurenSidecar } from '@/lib/divination/py-engine-client'
 import OpenAI from 'openai'
 import { citationRiskScore } from '@/lib/astro/citation-guard'
 import { normalizeMarkdown } from '@/lib/markdown/normalize'
@@ -43,7 +43,12 @@ export async function POST(request, context) {
           }
         }
         // 保证旁证段落进入用户可见输出
-        const appendix = formatSidecarMarkdown(enrich.note, enrich.sidecar)
+        const compareLines =
+          system === 'daliuren' && enrich.sidecar && typeof enrich.sidecar === 'object'
+            ? (enrich.sidecar.compare?.lines ||
+                compareDaliurenSidecar(built.chart || {}, enrich.sidecar).lines)
+            : undefined
+        const appendix = formatSidecarMarkdown(enrich.note, enrich.sidecar, compareLines)
         built.ruleReading = `${built.ruleReading}${appendix}`
         built.promptText = `${built.promptText}${appendix}`
       }

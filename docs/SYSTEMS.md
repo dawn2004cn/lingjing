@@ -10,7 +10,7 @@
 | liuyao | 易经六爻 | 占卜 | lingjing-liuyao（自研） | 时间(伪随机)/铜钱；日月建合冲 | `/liuyao` | §20 |
 | xiaoliuren | 小六壬 | 占卜 | lingjing-xiaoliuren | 月日时顺推 + 事项专断 | `/xiaoliuren` | §20 |
 | qimen | 奇门遁甲 | 占卜 | lingjing-qimen-chaibu + MIT 旁证 | 时家拆补 + 值符值使；**须人工复核** | `/qimen` | §20 |
-| daliuren | 大六壬 | 占卜 | lingjing-daliuren（可并 kinliuren） | 九宗门含别责/八专/昴星；**须人工复核** | `/daliuren` | §20–21 |
+| daliuren | 大六壬 | 占卜 | lingjing-daliuren（可并 kinliuren） | 九宗门；黄金课式；sidecar 三传对照 | `/daliuren` | §20–21 |
 | jinkou | 金口诀 | 占卜 | lingjing-jinkou；可并 kinjinkou | 四位 + 细断；人元贵神将神地分 | `/jinkou` | §20 |
 | taiyi | 太乙神数 | 研究 | lite JS；API 可并 py-engine | 年计；双路径对照 sidecar | `/taiyi` | §20 |
 | huangji | 皇极经世 | 研究 | lingjing-huangji；可并 py-engine | 元会运世；guaHint 非全卦链 | `/huangji` | §20 |

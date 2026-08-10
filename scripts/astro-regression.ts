@@ -31,8 +31,9 @@ import {
   BOUNDARY_DUAL_CASES,
   JIEQI_GOLDEN,
 } from '../lib/astro/golden-cases'
-import { TIEBAN_GOLDEN, XIAOLIUREN_GOLDEN, QIMEN_WITNESS_GOLDEN, BAZI_TIAOHOU_GOLDEN } from '../lib/astro/divination-golden'
+import { TIEBAN_GOLDEN, XIAOLIUREN_GOLDEN, QIMEN_WITNESS_GOLDEN, BAZI_TIAOHOU_GOLDEN, DALIUREN_GOLDEN } from '../lib/astro/divination-golden'
 import { parseWitnessJu } from '../lib/qimen/witness'
+import { compareDaliurenSidecar } from '../lib/divination/py-engine-client'
 import {
   crossCheckBaziInput,
   crossCheckLunarToSolar,
@@ -714,6 +715,8 @@ console.log('\n=== 19. Meeus 真太阳时 + 紫微完整性 ===')
   assert('紫微完整性通过', integ.status === 'ok', integ.summary)
   assert('十四主星', integ.majorCount === 14)
   assert('命宫自洽', integ.mingConsistent === true)
+  assert('十二宫齐全', integ.palaceCount === 12)
+  assert('无第二安星', integ.secondAnXingAvailable === false)
 }
 
 console.log('\n=== 20. 占卜集大成适配器冒烟 ===')
@@ -879,6 +882,34 @@ console.log('\n=== 20. 占卜集大成适配器冒烟 ===')
   assert('大六壬旬空', !!(dlr.chart as any).xunKong)
   assert('大六壬规则含复核', dlr.ruleReading.includes('人工复核'))
   assert('奇门规则含复核', qm.ruleReading.includes('人工复核'))
+
+  for (const g of DALIUREN_GOLDEN) {
+    const built = getAdapter('daliuren')!.build(g.input)
+    const ch = built.chart as any
+    assert(`${g.id} 节气`, ch.jieQi === g.expect.jieQi, ch.jieQi)
+    assert(`${g.id} 月将`, ch.yueJiang === g.expect.yueJiang, ch.yueJiang)
+    assert(`${g.id} 贵人`, ch.guiRen === g.expect.guiRen, ch.guiRen)
+    assert(`${g.id} 旬空`, ch.xunKong === g.expect.xunKong, ch.xunKong)
+    assert(`${g.id} 初传`, ch.sanChuan?.chu === g.expect.chu, ch.sanChuan?.chu)
+    assert(`${g.id} 中传`, ch.sanChuan?.zhong === g.expect.zhong, ch.sanChuan?.zhong)
+    assert(`${g.id} 末传`, ch.sanChuan?.mo === g.expect.mo, ch.sanChuan?.mo)
+    assert(
+      `${g.id} 取法`,
+      String(ch.sanChuan?.method || '').includes(g.expect.methodIncludes),
+      ch.sanChuan?.method,
+    )
+  }
+
+  const stubCmp = compareDaliurenSidecar(
+    { sanChuan: { chu: '子', zhong: '寅', mo: '辰', method: '贼克' }, yueJiang: '申', guiRen: '丑' },
+    { ok: false, engine: 'stub' },
+  )
+  assert('大六壬旁证对照 stub', stubCmp.align === 'stub')
+  const matchCmp = compareDaliurenSidecar(
+    { sanChuan: { chu: '子', zhong: '寅', mo: '辰' } },
+    { ok: true, engine: 'kinliuren', text: '初传子 中传寅 末传辰' },
+  )
+  assert('大六壬旁证对照 match', matchCmp.align === 'match', matchCmp.align)
 
   const ty = getAdapter('taiyi')!.build({ date: '2024-06-15', jiStyle: 0 })
   assert('太乙积年', typeof (ty.chart as any).jiNian === 'number')

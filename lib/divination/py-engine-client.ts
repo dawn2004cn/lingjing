@@ -39,8 +39,13 @@ function resolveYmdh(chart: Record<string, unknown>, input?: Record<string, unkn
 }
 
 /** 将 sidecar JSON 压成可读 Markdown 段落（保证有输出） */
-export function formatSidecarMarkdown(note: string, sidecar: unknown): string {
+export function formatSidecarMarkdown(
+  note: string,
+  sidecar: unknown,
+  extraLines?: string[],
+): string {
   const lines = ['', '## Python sidecar 旁证', `- ${note}`]
+  if (extraLines?.length) lines.push(...extraLines.map((l) => (l.startsWith('-') ? l : `- ${l}`)))
   if (sidecar && typeof sidecar === 'object') {
     const s = sidecar as Record<string, unknown>
     if (s.engine) lines.push(`- 引擎：${String(s.engine)}`)
@@ -56,6 +61,48 @@ export function formatSidecarMarkdown(note: string, sidecar: unknown): string {
     }
   }
   return lines.join('\n')
+}
+
+/** 从 kinliuren 旁证文本/JSON 中启发式抽取三传，与 JS 课式对照 */
+export function compareDaliurenSidecar(
+  chart: {
+    sanChuan?: { chu?: string; zhong?: string; mo?: string; method?: string }
+    yueJiang?: string
+    guiRen?: string
+  },
+  sidecar: unknown,
+): { align: 'match' | 'partial' | 'diff' | 'stub' | 'unknown'; lines: string[] } {
+  if (!sidecar || typeof sidecar !== 'object') {
+    return { align: 'unknown', lines: ['旁证为空，无法对照'] }
+  }
+  const s = sidecar as Record<string, unknown>
+  if (s.ok === false || String(s.engine || '') === 'stub') {
+    return {
+      align: 'stub',
+      lines: ['kinliuren 未安装或失败，仅保留 JS 自研课式'],
+    }
+  }
+  const blob = `${typeof s.text === 'string' ? s.text : ''} ${
+    typeof s.data === 'string' ? s.data : JSON.stringify(s.data ?? '')
+  }`
+  const chu = chart.sanChuan?.chu
+  const zhong = chart.sanChuan?.zhong
+  const mo = chart.sanChuan?.mo
+  const hits = [chu, zhong, mo].filter((z) => z && blob.includes(z)).length
+  let align: 'match' | 'partial' | 'diff' | 'unknown' = 'unknown'
+  if (chu && zhong && mo) {
+    if (hits === 3) align = 'match'
+    else if (hits >= 1) align = 'partial'
+    else align = 'diff'
+  }
+  return {
+    align,
+    lines: [
+      `JS 三传：初${chu} 中${zhong} 末${mo}（${chart.sanChuan?.method || '—'}）`,
+      `JS 月将 ${chart.yueJiang || '—'} · 贵人 ${chart.guiRen || '—'}`,
+      `旁证文本命中三传地支 ${hits}/3 → 对齐=${align}（启发式；完整对照请读 sidecar 原文）`,
+    ],
+  }
 }
 
 /** 太乙/皇极/奇门/大六壬：可选 Python 旁证 */
@@ -136,10 +183,19 @@ export async function enrichWithPyEngine(
 
   const data = await fetchPyEngine('/daliuren', { year, month, day, hour, minute: 0 })
   if (!data) return null
+  const san = chart.sanChuan as { chu?: string; zhong?: string; mo?: string; method?: string } | undefined
+  const compare = compareDaliurenSidecar(
+    {
+      sanChuan: san,
+      yueJiang: typeof chart.yueJiang === 'string' ? chart.yueJiang : undefined,
+      guiRen: typeof chart.guiRen === 'string' ? chart.guiRen : undefined,
+    },
+    data,
+  )
   return {
-    sidecar: data,
+    sidecar: { ...(typeof data === 'object' && data ? data : { raw: data }), compare },
     note: data.ok
-      ? '已并入 py-engine/kinliuren 旁证'
+      ? `已并入 py-engine/kinliuren 旁证（三传启发式对齐=${compare.align}）`
       : 'py-engine 未装 kinliuren，仍以 JS 自研为准',
   }
 }
