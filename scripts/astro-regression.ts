@@ -1038,6 +1038,19 @@ console.log('\n=== 20. 占卜集大成适配器冒烟 ===')
   assert('宫位幻觉列入', (badCite.breakdown?.palaces || []).length >= 1)
 }
 
+console.log('\n=== 21b. 会员档位元数据 ===')
+{
+  const { resolvePlanId, getPlanMeta, normalizePlanId, todayKey } = require('../lib/plan')
+  assert('normalize free', normalizePlanId('x') === 'free')
+  assert('normalize pro', normalizePlanId('pro') === 'pro')
+  assert('admin 解析为 admin', resolvePlanId({ role: 'admin', plan: 'free' }) === 'admin')
+  assert('普通用户 free', resolvePlanId({ role: 'user', plan: 'free' }) === 'free')
+  assert('普通用户 pro', resolvePlanId({ role: 'user', plan: 'pro' }) === 'pro')
+  assert('free 有日限', typeof getPlanMeta('free').dailyLlm === 'number')
+  assert('admin 不限', getPlanMeta('admin').dailyLlm === null)
+  assert('todayKey 格式', /^\d{4}-\d{2}-\d{2}$/.test(todayKey()))
+}
+
 console.log('\n=== 21. 大六壬九宗门简判 + 原典/笔画 ===')
 {
   // 贼克：唯一下克上

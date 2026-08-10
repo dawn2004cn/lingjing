@@ -105,6 +105,19 @@ export default function AdminPage() {
     } catch (e) { setError(e.message) }
   }, [fetchUsers, fetchDashboard])
 
+  const setUserPlan = useCallback(async (userId, plan) => {
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, plan }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error || '更新档位失败')
+      fetchUsers()
+    } catch (e) { setError(e.message) }
+  }, [fetchUsers])
+
   useEffect(() => {
     if (loading) return
     if (!user) { router.push('/login'); return }
@@ -450,6 +463,7 @@ export default function AdminPage() {
                         <th className="text-left py-3 px-4 text-[rgba(245,234,210,0.55)] font-medium">ID</th>
                         <th className="text-left py-3 px-4 text-[rgba(245,234,210,0.55)] font-medium">用户名</th>
                         <th className="text-left py-3 px-4 text-[rgba(245,234,210,0.55)] font-medium">角色</th>
+                        <th className="text-left py-3 px-4 text-[rgba(245,234,210,0.55)] font-medium">档位</th>
                         <th className="text-left py-3 px-4 text-[rgba(245,234,210,0.55)] font-medium">测算次数</th>
                         <th className="text-left py-3 px-4 text-[rgba(245,234,210,0.55)] font-medium">注册时间</th>
                         <th className="text-left py-3 px-4 text-[rgba(245,234,210,0.55)] font-medium">操作</th>
@@ -473,6 +487,20 @@ export default function AdminPage() {
                             }`}>
                               {u.role === 'admin' ? '管理员' : '用户'}
                             </span>
+                          </td>
+                          <td className="py-2.5 px-4">
+                            {u.role === 'admin' ? (
+                              <span className="text-[rgba(245,234,210,0.45)]">管理·不限</span>
+                            ) : (
+                              <select
+                                className="input-base !py-1 !text-[11px] !w-auto"
+                                value={u.plan === 'pro' ? 'pro' : 'free'}
+                                onChange={(e) => setUserPlan(u.id, e.target.value)}
+                              >
+                                <option value="free">免费</option>
+                                <option value="pro">专业</option>
+                              </select>
+                            )}
                           </td>
                           <td className="py-2.5 px-4 text-[rgba(247,236,215,0.78)]">{u.recordCount ?? 0}</td>
                           <td className="py-2.5 px-4 text-[rgba(245,234,210,0.5)] whitespace-nowrap">

@@ -20,7 +20,20 @@ export async function POST(request) {
     const headers = new Headers()
     headers.append('Set-Cookie', setTokenCookie(token))
 
-    return Response.json({ id: user.id, username: user.username, role: user.role }, { headers })
+    const { getQuotaStatus } = require('@/lib/plan')
+    const quota = getQuotaStatus(user.id)
+
+    return Response.json(
+      {
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        plan: quota.planId === 'admin' ? 'admin' : quota.planId,
+        planLabel: quota.label,
+        quota,
+      },
+      { headers },
+    )
   } catch (err) {
     console.error('Login error:', err)
     return Response.json({ error: '登录失败，请稍后重试' }, { status: 500 })

@@ -14,6 +14,7 @@ export default function ResultDisplay({
   system = 'bazi',
   polished,
   citationWarning,
+  quotaWarning,
   onFollowUp,
   followUpLoading,
   thread = [],
@@ -61,6 +62,11 @@ export default function ResultDisplay({
         <div className="mb-3 rounded-lg border border-[var(--cinnabar)]/35 bg-[rgba(184,74,52,0.08)] px-3 py-2 text-[11px] text-[rgba(247,236,215,0.7)]">
           润色引用护栏触发，已回退规则事实。疑似未在盘面出现：
           {citationWarning.join('、')}
+        </div>
+      )}
+      {quotaWarning && (
+        <div className="mb-3 rounded-lg border border-[var(--gold)]/35 bg-[rgba(215,168,74,0.08)] px-3 py-2 text-[11px] text-[rgba(247,236,215,0.7)]">
+          {quotaWarning}
         </div>
       )}
       <div className="card overflow-hidden">

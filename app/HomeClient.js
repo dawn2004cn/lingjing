@@ -69,6 +69,7 @@ export default function HomeClient() {
   const [result, setResult] = useState(null)
   const [thread, setThread] = useState([])
   const [ziweiSchoolMeta, setZiweiSchoolMeta] = useState('ni')
+  const [quotaWarning, setQuotaWarning] = useState(null)
   const [error, setError] = useState(null)
   const [showAuthHint, setShowAuthHint] = useState(false)
 
@@ -119,6 +120,7 @@ export default function HomeClient() {
     setIntegrity(null)
     setJieQiBoundary(null)
     setZiweiSchoolMeta(formData.ziweiSchool === 'feixing' ? 'feixing' : 'ni')
+    setQuotaWarning(null)
 
     try {
       let chartText = ''
@@ -163,6 +165,7 @@ export default function HomeClient() {
       setResult(data.result)
       setPolished(data.polished)
       setCitationWarning(data.citationWarning || null)
+      if (data.quotaWarning) setQuotaWarning(data.quotaWarning)
       if (data.dualBoundary) setDualBoundary(data.dualBoundary)
       if (data.crossCheck) setCrossCheck(data.crossCheck)
       if (data.integrity) setIntegrity(data.integrity)
@@ -187,6 +190,7 @@ export default function HomeClient() {
     setFollowUpLoading(true)
     setError(null)
     setCitationWarning(null)
+    setQuotaWarning(null)
     try {
       const res = await fetch('/api/analyze', {
         method: 'POST',
@@ -202,6 +206,10 @@ export default function HomeClient() {
       const answer = data.answer || data.result
       setThread((prev) => [...prev, { question: question.trim(), answer }])
       if (data.citationWarning) setCitationWarning(data.citationWarning)
+      if (data.quotaWarning) setQuotaWarning(data.quotaWarning)
+      if (data.quota && user) {
+        // soft refresh plan numbers on next profile open via refetch
+      }
     } catch (err) {
       setError(err.message)
     } finally {
@@ -368,6 +376,7 @@ export default function HomeClient() {
                 system={system}
                 polished={polished}
                 citationWarning={citationWarning}
+                quotaWarning={quotaWarning}
                 onFollowUp={handleFollowUp}
                 followUpLoading={followUpLoading}
                 thread={thread}

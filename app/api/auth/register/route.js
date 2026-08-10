@@ -23,13 +23,30 @@ export async function POST(request) {
     }
 
     const hash = bcrypt.hashSync(password, 10)
-    const result = db.prepare('INSERT INTO users (username, password) VALUES (?, ?)').run(username, hash)
+    const result = db.prepare('INSERT INTO users (username, password, plan) VALUES (?, ?, ?)').run(
+      username,
+      hash,
+      'free',
+    )
 
     const token = signToken({ id: result.lastInsertRowid, username, role: 'user' })
     const headers = new Headers()
     headers.append('Set-Cookie', setTokenCookie(token))
 
-    return Response.json({ id: result.lastInsertRowid, username, role: 'user' }, { headers })
+    const { getQuotaStatus } = require('@/lib/plan')
+    const quota = getQuotaStatus(result.lastInsertRowid)
+
+    return Response.json(
+      {
+        id: result.lastInsertRowid,
+        username,
+        role: 'user',
+        plan: 'free',
+        planLabel: quota.label,
+        quota,
+      },
+      { headers },
+    )
   } catch (err) {
     console.error('Register error:', err)
     return Response.json({ error: '注册失败，请稍后重试' }, { status: 500 })

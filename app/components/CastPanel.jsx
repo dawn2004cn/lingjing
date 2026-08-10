@@ -167,7 +167,7 @@ export default function CastPanel({
         </div>
         <label className="flex items-center gap-2 text-xs text-[rgba(245,234,210,0.55)]">
           <input type="checkbox" checked={polish} onChange={(e) => setPolish(e.target.checked)} />
-          尝试 LLM 润色（需配置 API Key；失败则回退规则事实）
+          尝试 LLM 润色（需登录；计日额度；失败或额度不足则回退规则事实）
         </label>
         <button type="submit" disabled={loading} className="btn-primary text-sm">
           {loading ? '起盘中…' : '起盘 / 排盘'}
@@ -183,6 +183,9 @@ export default function CastPanel({
             {payload.polished === true && <span>已润色</span>}
           </div>
           <StatusStrip payload={payload} system={system} />
+          {payload.quotaWarning && (
+            <p className="text-[11px] text-[rgba(242,207,122,0.75)]">{payload.quotaWarning}</p>
+          )}
           <MarkdownBody content={payload.result || payload.ruleReading} />
           {payload.chart && (
             <details className="text-[11px] text-[rgba(245,234,210,0.4)]">

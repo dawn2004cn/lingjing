@@ -47,9 +47,27 @@ export default function ProfilePage() {
           </Link>
           <div>
             <h1 className="text-[#fff6e2] text-base font-semibold tracking-tight">个人设置</h1>
-            <p className="text-[rgba(245,234,210,0.55)] text-xs mt-0.5">{user.username} · {user.role === 'admin' ? '管理员' : '普通用户'}</p>
+            <p className="text-[rgba(245,234,210,0.55)] text-xs mt-0.5">
+              {user.username} · {user.role === 'admin' ? '管理员' : '普通用户'}
+              {' · '}
+              {user.planLabel || (user.plan === 'pro' ? '专业' : user.plan === 'admin' ? '管理' : '免费')}档
+            </p>
           </div>
         </div>
+
+        {user.quota && (
+          <div className="mb-5 rounded-lg border border-[var(--line)] bg-[rgba(245,234,210,0.03)] px-3 py-3 text-[11px] text-[rgba(245,234,210,0.65)]">
+            <p className="text-[10px] tracking-[0.14em] text-[var(--gold-bright)] mb-1">今日 LLM 额度</p>
+            <p>
+              {user.quota.dailyLimit == null
+                ? `已用 ${user.quota.used} 次 · 管理档不限`
+                : `已用 ${user.quota.used} / ${user.quota.dailyLimit}（剩余 ${user.quota.remaining}）`}
+            </p>
+            <p className="mt-1 text-[rgba(245,234,210,0.4)]">
+              排盘与规则事实不限额；AI 润色/追问计入额度。专业档由管理员开通（支付网关未接）。
+            </p>
+          </div>
+        )}
 
         <div className="mb-6 h-px bg-[var(--line)]" />
 

@@ -4,6 +4,8 @@ import OpenAI from 'openai'
 import { citationRiskScore } from '@/lib/astro/citation-guard'
 import { normalizeMarkdown } from '@/lib/markdown/normalize'
 import { logAccuracyEvent } from '@/lib/astro/accuracy-events'
+import { getAuthUser } from '@/lib/auth'
+import { canUseLlm, consumeLlmQuota } from '@/lib/plan'
 
 export async function GET() {
   return Response.json({ systems: listSystems() })
@@ -74,6 +76,18 @@ export async function POST(request, context) {
       })
     }
 
+    const authUser = getAuthUser()
+    const gate = canUseLlm(authUser)
+    if (!gate.ok) {
+      return Response.json({
+        ...built,
+        polished: false,
+        result: normalizeMarkdown(built.ruleReading),
+        quotaWarning: gate.error,
+        quota: gate.quota || null,
+      })
+    }
+
     const client = new OpenAI({
       apiKey,
       baseURL: process.env.LLM_BASE_URL || 'https://api.deepseek.com/v1',
@@ -121,11 +135,18 @@ export async function POST(request, context) {
       }
     }
 
+    const quotaAfter = consumeLlmQuota(
+      authUser.id,
+      question ? 'followup' : 'polish',
+      system,
+    )
+
     return Response.json({
       ...built,
       polished,
       citationWarning,
       result: normalizeMarkdown(result),
+      quota: quotaAfter,
     })
   } catch (err) {
     console.error('divination error', err)

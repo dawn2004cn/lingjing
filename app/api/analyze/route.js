@@ -21,6 +21,8 @@ import {
   formatZiweiIntegrityForPrompt,
 } from '@/lib/astro/ziwei-integrity'
 import { logAccuracyEvent } from '@/lib/astro/accuracy-events'
+import { getAuthUser } from '@/lib/auth'
+import { canUseLlm, consumeLlmQuota } from '@/lib/plan'
 
 const POLISH_SYSTEM = `你是命理文案润色助手。
 用户会给出【算法已生成的规则事实解读】。
@@ -256,6 +258,31 @@ export async function POST(request) {
       })
     }
 
+    const authUser = getAuthUser()
+    const gate = canUseLlm(authUser)
+    if (!gate.ok) {
+      const normalized = normalizeMarkdown(
+        followUpOnly
+          ? `关于「${question}」：${gate.error}`
+          : `${ruleReading}\n\n---\n\n> ${gate.error}`,
+      )
+      return Response.json({
+        result: followUpOnly ? normalized : normalizeMarkdown(ruleReading),
+        ruleReading: normalizeMarkdown(ruleReading),
+        polished: false,
+        followUp: followUpOnly,
+        answer: followUpOnly ? normalized : undefined,
+        quotaWarning: gate.error,
+        quota: gate.quota || null,
+        system: isZiwei ? 'ziwei' : 'bazi',
+        chartMeta: chartPayload,
+        dualBoundary,
+        crossCheck,
+        jieQiBoundary,
+        integrity,
+      })
+    }
+
     const userPrompt = question
       ? `请严格依据下列规则事实与结构化盘面，回答用户本轮追问：「${question}」。
 只输出本轮回答（Markdown），不要重复整篇规则解读；可简短引用先前追问结论以保持连贯。
@@ -317,6 +344,12 @@ ${chartText}
       }
     }
 
+    const quotaAfter = consumeLlmQuota(
+      authUser.id,
+      followUpOnly ? 'followup' : 'polish',
+      isZiwei ? 'ziwei' : 'bazi',
+    )
+
     return Response.json({
       result: normalizeMarkdown(result),
       ruleReading: normalizeMarkdown(ruleReading),
@@ -324,6 +357,7 @@ ${chartText}
       citationWarning,
       followUp: followUpOnly,
       answer: followUpOnly ? normalizeMarkdown(result) : undefined,
+      quota: quotaAfter,
       system: isZiwei ? 'ziwei' : 'bazi',
       chartMeta: chartPayload,
       dualBoundary,
