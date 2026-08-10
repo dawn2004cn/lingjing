@@ -11,6 +11,7 @@ export default function HistoryPage() {
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const [records, setRecords] = useState([])
+  const [sessions, setSessions] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -20,11 +21,21 @@ export default function HistoryPage() {
       setLoading(false)
       return
     }
-    fetch('/api/records')
-      .then(async (res) => {
+    Promise.all([
+      fetch('/api/records').then(async (res) => {
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || '加载失败')
-        setRecords(data.records || [])
+        return data.records || []
+      }),
+      fetch('/api/sessions?limit=40').then(async (res) => {
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || '会话加载失败')
+        return data.sessions || []
+      }),
+    ])
+      .then(([recs, sess]) => {
+        setRecords(recs)
+        setSessions(sess)
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
@@ -49,6 +60,26 @@ export default function HistoryPage() {
     router.push(`/?${q.toString()}`)
   }
 
+  const openSession = (s) => {
+    router.push(`/?session=${encodeURIComponent(s.publicId)}`)
+  }
+
+  const removeSession = async (s) => {
+    if (!confirm(`删除会话「${s.title}」？`)) return
+    try {
+      const res = await fetch('/api/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', id: s.publicId }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || '删除失败')
+      setSessions((prev) => prev.filter((x) => x.publicId !== s.publicId))
+    } catch (e) {
+      setError(e.message)
+    }
+  }
+
   return (
     <div className="page-shell">
       <NavBar />
@@ -57,7 +88,7 @@ export default function HistoryPage() {
           <p className="text-xs tracking-[0.18em] text-[var(--gold-bright)]">HISTORY</p>
           <h1 className="mt-2 text-3xl font-semibold text-[#fff6e2]">命盘历史</h1>
           <p className="mt-2 text-sm text-[rgba(245,234,210,0.55)]">
-            查看你提交过的生辰记录，一键回到排盘页再读。
+            解读会话可恢复主文与多轮追问；生辰记录用于一键回到排盘。
           </p>
         </div>
 
@@ -79,14 +110,62 @@ export default function HistoryPage() {
 
         {error && <p className="text-sm text-[var(--cinnabar)]">{error}</p>}
 
-        {user && !loading && records.length === 0 && (
+        {user && !loading && sessions.length > 0 && (
+          <section className="mb-10 space-y-3">
+            <h2 className="text-sm tracking-[0.14em] text-[var(--gold-bright)]">解读会话</h2>
+            {sessions.map((s) => (
+              <div
+                key={s.publicId}
+                className="card px-5 py-4 flex flex-wrap items-center justify-between gap-3"
+              >
+                <div>
+                  <div className="text-[#fff6e2] font-medium">
+                    {s.title}
+                    <span className="ml-2 text-[10px] tracking-widest text-[var(--gold-bright)]">
+                      {s.system === 'ziwei' ? '紫微' : '八字'}
+                    </span>
+                  </div>
+                  <div className="mt-1 text-xs text-[rgba(245,234,210,0.45)]">
+                    {Array.isArray(s.thread) && s.thread.length
+                      ? `${s.thread.length} 轮追问`
+                      : '尚无追问'}
+                    {' · '}
+                    <span className="font-mono text-[10px]">{s.publicId}</span>
+                  </div>
+                  <div className="mt-0.5 text-[10px] text-[rgba(245,234,210,0.3)]">
+                    更新 {s.updatedAt}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className="btn-ghost !text-xs border border-[var(--line)]"
+                    onClick={() => openSession(s)}
+                  >
+                    继续会话
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ghost !text-xs"
+                    onClick={() => removeSession(s)}
+                  >
+                    删除
+                  </button>
+                </div>
+              </div>
+            ))}
+          </section>
+        )}
+
+        {user && !loading && records.length === 0 && sessions.length === 0 && (
           <div className="card p-6 text-center text-sm text-[rgba(245,234,210,0.5)]">
             暂无记录，去 <Link href="/" className="text-[var(--gold-bright)]">排盘</Link> 试一次
           </div>
         )}
 
         {records.length > 0 && (
-          <div className="space-y-3">
+          <section className="space-y-3">
+            <h2 className="text-sm tracking-[0.14em] text-[var(--gold-bright)]">生辰记录</h2>
             {records.map((r) => (
               <div
                 key={r.id}
@@ -138,7 +217,7 @@ export default function HistoryPage() {
                 </div>
               </div>
             ))}
-          </div>
+          </section>
         )}
       </main>
     </div>

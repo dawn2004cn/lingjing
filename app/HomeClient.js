@@ -35,6 +35,11 @@ export default function HomeClient() {
     if (!searchParams) return
     const name = searchParams.get('name')
     const birthDate = searchParams.get('birthDate')
+    const sid = searchParams.get('session')
+    if (sid) {
+      // 由下方会话加载 effect 处理
+      return
+    }
     if (!name && !birthDate) return
     setFormData((prev) => ({
       ...prev,
@@ -53,6 +58,41 @@ export default function HomeClient() {
       ziweiSchool: searchParams.get('ziweiSchool') === 'feixing' ? 'feixing' : prev.ziweiSchool || 'ni',
     }))
   }, [searchParams])
+
+  useEffect(() => {
+    if (!searchParams || !user) return
+    const sid = searchParams.get('session')
+    if (!sid) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch(`/api/sessions?id=${encodeURIComponent(sid)}`)
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || '会话加载失败')
+        if (cancelled || !data.session) return
+        const s = data.session
+        const birth = s.birth || {}
+        setSessionId(s.publicId)
+        setFormData((prev) => ({
+          ...prev,
+          ...birth,
+          system: s.system || birth.system || prev.system,
+        }))
+        setResult(s.result || null)
+        setThread(Array.isArray(s.thread) ? s.thread : [])
+        setPolished(s.meta?.polished)
+        setZiweiSchoolMeta(
+          birth.ziweiSchool === 'feixing' || s.meta?.ziweiSchool === 'feixing' ? 'feixing' : 'ni',
+        )
+        setError(null)
+      } catch (e) {
+        if (!cancelled) setError(e.message)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [searchParams, user])
   const [chartLoading, setChartLoading] = useState(false)
   const [analyzeLoading, setAnalyzeLoading] = useState(false)
   const [followUpLoading, setFollowUpLoading] = useState(false)
@@ -68,6 +108,7 @@ export default function HomeClient() {
   const [jieQiBoundary, setJieQiBoundary] = useState(null)
   const [result, setResult] = useState(null)
   const [thread, setThread] = useState([])
+  const [sessionId, setSessionId] = useState(null)
   const [ziweiSchoolMeta, setZiweiSchoolMeta] = useState('ni')
   const [quotaWarning, setQuotaWarning] = useState(null)
   const [error, setError] = useState(null)
@@ -86,6 +127,7 @@ export default function HomeClient() {
       setBaziMeta(null)
       setResult(null)
       setThread([])
+      setSessionId(null)
       setPolished(undefined)
       setCitationWarning(null)
       setDualBoundary(null)
@@ -110,6 +152,7 @@ export default function HomeClient() {
 
     setResult(null)
     setThread([])
+    setSessionId(null)
     setError(null)
     setTrueSolar(null)
     setBaziMeta(null)
@@ -177,6 +220,35 @@ export default function HomeClient() {
       if (isZiwei && data.chartMeta?.ziweiSchool) {
         setZiweiSchoolMeta(data.chartMeta.ziweiSchool)
       }
+      // 持久化为独立会话（失败不影响主流程）
+      try {
+        const sessRes = await fetch('/api/sessions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'create',
+            system: formData.system,
+            birth: formData,
+            result: data.result,
+            thread: [],
+            meta: {
+              polished: data.polished,
+              ziweiSchool: formData.ziweiSchool || 'ni',
+            },
+          }),
+        })
+        const sessData = await sessRes.json()
+        if (sessRes.ok && sessData.session?.publicId) {
+          setSessionId(sessData.session.publicId)
+          if (typeof window !== 'undefined') {
+            const url = new URL(window.location.href)
+            url.searchParams.set('session', sessData.session.publicId)
+            window.history.replaceState({}, '', url.toString())
+          }
+        }
+      } catch (_) {
+        /* ignore */
+      }
     } catch (err) {
       setError(err.message)
     } finally {
@@ -207,8 +279,17 @@ export default function HomeClient() {
       setThread((prev) => [...prev, { question: question.trim(), answer }])
       if (data.citationWarning) setCitationWarning(data.citationWarning)
       if (data.quotaWarning) setQuotaWarning(data.quotaWarning)
-      if (data.quota && user) {
-        // soft refresh plan numbers on next profile open via refetch
+      if (sessionId) {
+        fetch('/api/sessions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'append',
+            id: sessionId,
+            question: question.trim(),
+            answer,
+          }),
+        }).catch(() => {})
       }
     } catch (err) {
       setError(err.message)
@@ -381,6 +462,7 @@ export default function HomeClient() {
                 followUpLoading={followUpLoading}
                 thread={thread}
                 ziweiSchool={ziweiSchoolMeta}
+                sessionId={sessionId}
               />
             )}
           </section>

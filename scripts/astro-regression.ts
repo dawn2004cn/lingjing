@@ -1161,6 +1161,21 @@ console.log('\n=== 21d. 订单号与标价 ===')
   else process.env.PLAN_PAY_NOTIFY_SECRET = prev
 }
 
+console.log('\n=== 21e. 解读会话 ===')
+{
+  const {
+    mintSessionPublicId,
+    normalizeThreadForStore,
+  } = require('../lib/sessions')
+  assert('会话 ID 前缀 S', mintSessionPublicId().startsWith('S'))
+  const t = normalizeThreadForStore([
+    { question: '事业？', answer: '看官禄' },
+    { question: '', answer: '' },
+  ])
+  assert('线程清洗保留有效轮', t.length === 1 && t[0].question === '事业？')
+  assert('超长问题截断', normalizeThreadForStore([{ question: 'q'.repeat(3000), answer: 'a' }])[0].question.length <= 2000)
+}
+
 console.log('\n=== 21. 大六壬九宗门简判 + 原典/笔画 ===')
 {
   // 贼克：唯一下克上

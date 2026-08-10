@@ -19,6 +19,7 @@ export default function ResultDisplay({
   followUpLoading,
   thread = [],
   ziweiSchool,
+  sessionId,
 }) {
   const isZiwei = system === 'ziwei'
   const chips = FOLLOWUPS[isZiwei ? 'ziwei' : 'bazi']
@@ -74,9 +75,15 @@ export default function ResultDisplay({
           <span className="text-xs font-semibold text-[var(--gold-bright)] tracking-[0.18em]">
             {isZiwei ? '紫微解读' : '命理分析'}
           </span>
-          <span className="text-[10px] text-[rgba(245,234,210,0.4)]">
+          <span className="text-[10px] text-[rgba(245,234,210,0.4)] text-right">
             {isZiwei && ziweiSchool === 'feixing' ? '飞星 · ' : isZiwei ? '倪师 · ' : ''}
             {polished === false ? '规则事实' : polished ? '规则 + 润色' : 'AI 推演'}
+            {sessionId ? (
+              <>
+                <br />
+                <span className="font-mono text-[rgba(245,234,210,0.35)]">会话 {sessionId}</span>
+              </>
+            ) : null}
           </span>
         </div>
         <div className="px-6 py-6">
