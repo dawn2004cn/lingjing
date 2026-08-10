@@ -48,6 +48,7 @@ export async function POST(request) {
       city,
       longitude,
       daySect,
+      ziweiSchool,
     } = body
 
     if (!birthDate || (!birthHour && !birthClock)) {
@@ -83,8 +84,10 @@ export async function POST(request) {
       city,
       longitude,
       daySect: Number(daySect) === 1 ? 1 : 2,
+      ziweiSchool: ziweiSchool === 'feixing' ? 'feixing' : 'ni',
     }
 
+    const school = birth.ziweiSchool
     const { chart, patterns, mingSummary, trueSolar, timeIndex } = buildChartWithPatterns(birth)
     let promptText = formatChartForPrompt(chart, patterns, { trueSolar, timeIndex })
 
@@ -116,6 +119,7 @@ export async function POST(request) {
       promptText,
       timeIndex,
       trueSolar,
+      ziweiSchool: school,
       dualBoundary: serializeDual(dual),
       crossCheck,
       integrity,

@@ -50,10 +50,12 @@ export default function HomeClient() {
       province: searchParams.get('province') || prev.province,
       city: searchParams.get('city') || prev.city,
       daySect: searchParams.get('daySect') === '1' ? 1 : 2,
+      ziweiSchool: searchParams.get('ziweiSchool') === 'feixing' ? 'feixing' : prev.ziweiSchool || 'ni',
     }))
   }, [searchParams])
   const [chartLoading, setChartLoading] = useState(false)
   const [analyzeLoading, setAnalyzeLoading] = useState(false)
+  const [followUpLoading, setFollowUpLoading] = useState(false)
   const [chart, setChart] = useState(null)
   const [patterns, setPatterns] = useState([])
   const [trueSolar, setTrueSolar] = useState(null)
@@ -65,12 +67,14 @@ export default function HomeClient() {
   const [integrity, setIntegrity] = useState(null)
   const [jieQiBoundary, setJieQiBoundary] = useState(null)
   const [result, setResult] = useState(null)
+  const [thread, setThread] = useState([])
+  const [ziweiSchoolMeta, setZiweiSchoolMeta] = useState('ni')
   const [error, setError] = useState(null)
   const [showAuthHint, setShowAuthHint] = useState(false)
 
   const system = formData.system || 'bazi'
   const isZiwei = system === 'ziwei'
-  const loading = chartLoading || analyzeLoading
+  const loading = chartLoading || analyzeLoading || followUpLoading
 
   const handleSystemChange = (next) => {
     setFormData(next)
@@ -80,6 +84,7 @@ export default function HomeClient() {
       setTrueSolar(null)
       setBaziMeta(null)
       setResult(null)
+      setThread([])
       setPolished(undefined)
       setCitationWarning(null)
       setDualBoundary(null)
@@ -103,6 +108,7 @@ export default function HomeClient() {
     }).catch(() => {})
 
     setResult(null)
+    setThread([])
     setError(null)
     setTrueSolar(null)
     setBaziMeta(null)
@@ -112,6 +118,7 @@ export default function HomeClient() {
     setCrossCheck(null)
     setIntegrity(null)
     setJieQiBoundary(null)
+    setZiweiSchoolMeta(formData.ziweiSchool === 'feixing' ? 'feixing' : 'ni')
 
     try {
       let chartText = ''
@@ -130,6 +137,7 @@ export default function HomeClient() {
         setChart(chartData.chart)
         setPatterns(chartData.patterns || [])
         setTrueSolar(chartData.trueSolar || null)
+        if (chartData.ziweiSchool) setZiweiSchoolMeta(chartData.ziweiSchool)
         if (chartData.dualBoundary) setDualBoundary(chartData.dualBoundary)
         if (chartData.crossCheck) setCrossCheck(chartData.crossCheck)
         if (chartData.integrity) setIntegrity(chartData.integrity)
@@ -163,6 +171,9 @@ export default function HomeClient() {
         setBaziMeta(data.chartMeta)
         setTrueSolar(data.chartMeta.trueSolar || null)
       }
+      if (isZiwei && data.chartMeta?.ziweiSchool) {
+        setZiweiSchoolMeta(data.chartMeta.ziweiSchool)
+      }
     } catch (err) {
       setError(err.message)
     } finally {
@@ -172,8 +183,8 @@ export default function HomeClient() {
   }
 
   const handleFollowUp = async (question) => {
-    if (!user || !result) return
-    setAnalyzeLoading(true)
+    if (!user || !result || !question?.trim()) return
+    setFollowUpLoading(true)
     setError(null)
     setCitationWarning(null)
     try {
@@ -182,18 +193,19 @@ export default function HomeClient() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          question,
+          question: question.trim(),
+          history: thread,
         }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || '追问失败')
-      setResult(data.result)
-      setPolished(data.polished)
-      setCitationWarning(data.citationWarning || null)
+      const answer = data.answer || data.result
+      setThread((prev) => [...prev, { question: question.trim(), answer }])
+      if (data.citationWarning) setCitationWarning(data.citationWarning)
     } catch (err) {
       setError(err.message)
     } finally {
-      setAnalyzeLoading(false)
+      setFollowUpLoading(false)
     }
   }
 
@@ -213,7 +225,7 @@ export default function HomeClient() {
             </div>
             <h1 className="hero-title">灵镜</h1>
             <p className="hero-subtitle">
-              以出生年月日时为引，可选八字或紫微斗数。支持早晚子、闰月与真太阳时；紫微走真实排盘，八字先定柱位再解读。
+              以出生年月日时为引，可选八字或紫微斗数。支持早晚子、闰月、真太阳时与紫微倪师/飞星口径；紫微走真实排盘，八字先定柱位再解读。
             </p>
 
             <div className="oracle-strip animate-slide-up">
@@ -308,6 +320,11 @@ export default function HomeClient() {
                           ? '盘面告警'
                           : null,
                     Number(formData.daySect) === 1 ? '日柱流派1' : '日柱流派2',
+                    isZiwei
+                      ? formData.ziweiSchool === 'feixing'
+                        ? '飞星口径'
+                        : '倪师口径'
+                      : null,
                   ]}
                   lines={
                     isZiwei && chart
@@ -340,7 +357,7 @@ export default function HomeClient() {
               <div className="card mt-5">
                 <LoadingSpinner />
               </div>
-            ) : analyzeLoading ? (
+            ) : analyzeLoading && !result ? (
               <div className="card mt-5">
                 <LoadingSpinner />
               </div>
@@ -352,7 +369,9 @@ export default function HomeClient() {
                 polished={polished}
                 citationWarning={citationWarning}
                 onFollowUp={handleFollowUp}
-                followUpLoading={analyzeLoading}
+                followUpLoading={followUpLoading}
+                thread={thread}
+                ziweiSchool={ziweiSchoolMeta}
               />
             )}
           </section>

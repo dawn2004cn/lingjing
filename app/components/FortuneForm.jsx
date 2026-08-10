@@ -104,6 +104,36 @@ export default function FortuneForm({ formData, onChange, onSubmit, loading }) {
       <BirthExtrasFields formData={formData} onChange={onChange} idPrefix="fortune" />
       <PrecisionHints formData={formData} />
 
+      {system === 'ziwei' && (
+        <div className="input-field">
+          <label className="input-label">紫微口径</label>
+          <div className="pill-toggle" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
+            {[
+              { value: 'ni', label: '倪师（默认）' },
+              { value: 'feixing', label: '飞星' },
+            ].map((opt) => (
+              <label
+                key={opt.value}
+                className="pill-option"
+                data-active={(formData.ziweiSchool || 'ni') === opt.value}
+              >
+                <input
+                  type="radio"
+                  name="ziweiSchool"
+                  value={opt.value}
+                  checked={(formData.ziweiSchool || 'ni') === opt.value}
+                  onChange={(e) => update('ziweiSchool', e.target.value)}
+                />
+                {opt.label}
+              </label>
+            ))}
+          </div>
+          <p className="mt-2 text-[11px] leading-relaxed text-[rgba(245,234,210,0.45)]">
+            飞星会输出大限宫干四化与自化宫位数；来因宫细断仍建议人工复核。
+          </p>
+        </div>
+      )}
+
       <div className="pt-2">
         <button type="submit" disabled={loading} className="btn-primary">
           {loading

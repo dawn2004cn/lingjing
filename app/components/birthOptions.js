@@ -24,4 +24,6 @@ export const emptyBirthExtras = () => ({
   city: '',
   /** 八字日柱流派：2=23时不跨日（默认），1=23时换日 */
   daySect: 2,
+  /** 紫微运限口径：ni=倪师（默认）；feixing=飞星 */
+  ziweiSchool: 'ni',
 })

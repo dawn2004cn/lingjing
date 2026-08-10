@@ -1,3 +1,6 @@
+'use client'
+
+import { useState } from 'react'
 import MarkdownBody from './MarkdownBody'
 
 const FOLLOWUPS = {
@@ -13,9 +16,12 @@ export default function ResultDisplay({
   citationWarning,
   onFollowUp,
   followUpLoading,
+  thread = [],
+  ziweiSchool,
 }) {
   const isZiwei = system === 'ziwei'
   const chips = FOLLOWUPS[isZiwei ? 'ziwei' : 'bazi']
+  const [draft, setDraft] = useState('')
 
   if (error) {
     return (
@@ -42,6 +48,13 @@ export default function ResultDisplay({
     )
   }
 
+  const submitDraft = () => {
+    const q = draft.trim()
+    if (!q || !onFollowUp || followUpLoading) return
+    onFollowUp(q)
+    setDraft('')
+  }
+
   return (
     <div className="animate-slide-up mt-5">
       {citationWarning?.length > 0 && (
@@ -56,16 +69,32 @@ export default function ResultDisplay({
             {isZiwei ? '紫微解读' : '命理分析'}
           </span>
           <span className="text-[10px] text-[rgba(245,234,210,0.4)]">
+            {isZiwei && ziweiSchool === 'feixing' ? '飞星 · ' : isZiwei ? '倪师 · ' : ''}
             {polished === false ? '规则事实' : polished ? '规则 + 润色' : 'AI 推演'}
           </span>
         </div>
         <div className="px-6 py-6">
           <MarkdownBody>{result}</MarkdownBody>
         </div>
+
+        {thread.length > 0 && (
+          <div className="px-6 pb-4 space-y-4 border-t border-[var(--line)] pt-4">
+            <p className="text-[10px] tracking-[0.14em] text-[var(--gold-bright)]">多轮追问</p>
+            {thread.map((turn, idx) => (
+              <div key={`${idx}-${turn.question}`} className="space-y-2">
+                <p className="text-xs text-[rgba(245,234,210,0.55)]">问：{turn.question}</p>
+                <div className="rounded-md border border-[var(--line)] bg-[rgba(245,234,210,0.03)] px-3 py-3">
+                  <MarkdownBody>{turn.answer}</MarkdownBody>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {typeof onFollowUp === 'function' && (
           <div className="px-6 pb-6 pt-2 border-t border-[var(--line)]">
             <p className="text-[10px] tracking-[0.14em] text-[var(--gold-bright)] mb-2">继续追问</p>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 mb-3">
               {chips.map((q) => (
                 <button
                   key={q}
@@ -77,6 +106,30 @@ export default function ResultDisplay({
                   {q}
                 </button>
               ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                className="input-base flex-1 text-sm"
+                placeholder="输入自定义问题，可多轮连贯追问"
+                value={draft}
+                disabled={!!followUpLoading}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    submitDraft()
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="btn-primary !w-auto px-4 shrink-0"
+                disabled={!!followUpLoading || !draft.trim()}
+                onClick={submitDraft}
+              >
+                {followUpLoading ? '…' : '发送'}
+              </button>
             </div>
           </div>
         )}

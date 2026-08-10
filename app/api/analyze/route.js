@@ -45,7 +45,23 @@ function pickBirthFields(body) {
     city: body.city || '',
     longitude: body.longitude,
     daySect: daySectRaw === 1 ? 1 : 2,
+    ziweiSchool: body.ziweiSchool === 'feixing' ? 'feixing' : 'ni',
   }
+}
+
+function formatHistoryBlock(history) {
+  if (!Array.isArray(history) || !history.length) return ''
+  const lines = history
+    .slice(-6)
+    .map((t, i) => {
+      const q = typeof t?.question === 'string' ? t.question.trim() : ''
+      const a = typeof t?.answer === 'string' ? t.answer.trim() : ''
+      if (!q) return ''
+      return `### 第${i + 1}轮\n问：${q}\n答：${a || '（无）'}`
+    })
+    .filter(Boolean)
+  if (!lines.length) return ''
+  return `\n\n--- 此前追问（供连贯，不得改写盘面） ---\n${lines.join('\n\n')}\n---`
 }
 
 function baziChartMeta(chart) {
@@ -147,11 +163,12 @@ export async function POST(request) {
     }
 
     if (isZiwei) {
+      const school = birth.ziweiSchool === 'feixing' ? 'feixing' : 'ni'
       const { chart, patterns, trueSolar, timeIndex } = buildChartWithPatterns(birth)
       if (!chartText) {
         chartText = formatChartForPrompt(chart, patterns, { trueSolar, timeIndex })
       }
-      ruleReading = buildZiweiRuleReading(chart, patterns)
+      ruleReading = buildZiweiRuleReading(chart, patterns, { school })
       if (dual?.applicable) {
         const dualText = formatDualForPrompt(dual)
         ruleReading += `\n\n${dualText}`
@@ -175,6 +192,7 @@ export async function POST(request) {
         wuxingJuName: chart.wuxingJuName,
         patterns: patterns.slice(0, 8).map((p) => p.name),
         timeIndex,
+        ziweiSchool: school,
         trueSolar: trueSolar
           ? {
               totalCorrectionMin: trueSolar.totalCorrectionMin,
@@ -214,17 +232,21 @@ export async function POST(request) {
       }
     }
 
+    const question = typeof body.question === 'string' ? body.question.trim() : ''
+    const historyBlock = formatHistoryBlock(body.history)
+    const followUpOnly = !!question
+
     if (!apiKey || apiKey === 'sk-your-api-key-here') {
-      const question = typeof body.question === 'string' ? body.question.trim() : ''
-      const normalized = normalizeMarkdown(
-        question
-          ? `${ruleReading}\n\n## 追问\n\n关于「${question}」：请对照上方规则事实自行研判；配置 API Key 后可生成针对性回答。`
-          : ruleReading,
-      )
+      const stubAnswer = question
+        ? `关于「${question}」：请对照规则事实自行研判；配置 API Key 后可生成针对性多轮回答。`
+        : ''
+      const normalized = normalizeMarkdown(question ? stubAnswer : ruleReading)
       return Response.json({
         result: normalized,
         ruleReading: normalizeMarkdown(ruleReading),
         polished: false,
+        followUp: followUpOnly,
+        answer: followUpOnly ? normalized : undefined,
         system: isZiwei ? 'ziwei' : 'bazi',
         chartMeta: chartPayload,
         dualBoundary,
@@ -234,10 +256,11 @@ export async function POST(request) {
       })
     }
 
-    const question = typeof body.question === 'string' ? body.question.trim() : ''
     const userPrompt = question
-      ? `请严格依据下列规则事实与结构化盘面，回答用户追问：「${question}」。
-不得编造盘面中不存在的星曜/干支/格局；若事实不足请明确说明。输出 Markdown。
+      ? `请严格依据下列规则事实与结构化盘面，回答用户本轮追问：「${question}」。
+只输出本轮回答（Markdown），不要重复整篇规则解读；可简短引用先前追问结论以保持连贯。
+不得编造盘面中不存在的星曜/干支/格局；若事实不足请明确说明。
+${historyBlock}
 
 --- 规则解读 ---
 ${ruleReading}
@@ -262,7 +285,7 @@ ${chartText}
         { role: 'user', content: userPrompt },
       ],
       temperature: 0.55,
-      max_tokens: isZiwei ? 3072 : 2048,
+      max_tokens: followUpOnly ? 1536 : isZiwei ? 3072 : 2048,
     })
 
     let result = completion.choices?.[0]?.message?.content
@@ -270,7 +293,9 @@ ${chartText}
     let citationWarning = null
 
     if (!result) {
-      result = ruleReading
+      result = followUpOnly
+        ? `关于「${question}」：模型无返回，请对照规则事实自行研判。`
+        : ruleReading
       polished = false
     } else {
       result = normalizeMarkdown(result)
@@ -285,7 +310,9 @@ ${chartText}
       })
       if (fellBack) {
         citationWarning = risk.unknown
-        result = `${normalizeMarkdown(ruleReading)}\n\n---\n\n> 注：模型润色疑似引入未在盘面出现的词（${risk.unknown.join('、')}），已回退规则解读。`
+        result = followUpOnly
+          ? `> 注：本轮回答疑似引入未在盘面出现的词（${risk.unknown.join('、')}），已回退提示。请对照规则事实自行研判「${question}」。`
+          : `${normalizeMarkdown(ruleReading)}\n\n---\n\n> 注：模型润色疑似引入未在盘面出现的词（${risk.unknown.join('、')}），已回退规则解读。`
         polished = false
       }
     }
@@ -295,6 +322,8 @@ ${chartText}
       ruleReading: normalizeMarkdown(ruleReading),
       polished,
       citationWarning,
+      followUp: followUpOnly,
+      answer: followUpOnly ? normalizeMarkdown(result) : undefined,
       system: isZiwei ? 'ziwei' : 'bazi',
       chartMeta: chartPayload,
       dualBoundary,

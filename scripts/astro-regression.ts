@@ -1016,6 +1016,11 @@ console.log('\n=== 20. 占卜集大成适配器冒烟 ===')
   })
   assert('紫微飞星口径', (zwFly.meta as any)?.ziweiSchool === 'feixing')
   assert('紫微飞星含大限四化文案', zwFly.ruleReading.includes('大限四化') || zwFly.ruleReading.includes('飞星'))
+
+  // 主站口径字段：飞星与倪师规则文案必须可区分
+  assert('飞星规则含飞星字样', zwFly.ruleReading.includes('飞星'))
+  assert('倪师标明不另飞四化', zw.ruleReading.includes('不另飞'))
+  assert('倪师无宫干四化行', !zw.ruleReading.includes('大限四化（宫干'))
 }
 
 console.log('\n=== 21. 大六壬九宗门简判 + 原典/笔画 ===')
